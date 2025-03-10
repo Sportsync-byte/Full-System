@@ -1,0 +1,61 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          UserRole  @default(USER)
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Organization {
+  id            String    @id @default(uuid())
+  name          String
+  type          OrgType
+  subscription  Subscription?
+  venues        Venue[]
+  users         User[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Subscription {
+  id            String    @id @default(uuid())
+  organizationId String   @unique
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  type          SubType
+  allowedSports String[]
+  maxGames      Int
+  isActive      Boolean   @default(true)
+  expiryDate    DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  ORGANIZATION_ADMIN
+  SCORER
+  USER
+}
+
+enum OrgType {
+  CLUB
+  STADIUM
+}
+
+enum SubType {
+  SPORTS_CLUB
+  SPORTS_STADIUM
+}
