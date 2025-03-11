@@ -1,0 +1,123 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Grid,
+  TextField,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+} from '@mui/material';
+import { Fixture } from '../../../types/types';
+
+interface NetballResultFormProps {
+  fixture: Fixture;
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+}
+
+interface QuarterScore {
+  home: number;
+  away: number;
+}
+
+const NetballResultForm: React.FC<NetballResultFormProps> = ({
+  fixture,
+  onSubmit,
+  onCancel,
+}) => {
+  const [quarterScores, setQuarterScores] = useState<QuarterScore[]>([
+    { home: 0, away: 0 },
+    { home: 0, away: 0 },
+    { home: 0, away: 0 },
+    { home: 0, away: 0 },
+  ]);
+
+  const calculateTotalScore = (team: 'home' | 'away') => {
+    return quarterScores.reduce((total, quarter) => total + quarter[team], 0);
+  };
+
+  const handleScoreChange = (quarter: number, team: 'home' | 'away', value: number) => {
+    const newScores = [...quarterScores];
+    newScores[quarter] = {
+      ...newScores[quarter],
+      [team]: value,
+    };
+    setQuarterScores(newScores);
+  };
+
+  const handleSubmit = () => {
+    const result = {
+      homeScore: calculateTotalScore('home'),
+      awayScore: calculateTotalScore('away'),
+      details: {
+        quarterScores,
+      },
+    };
+
+    onSubmit(result);
+  };
+
+  return (
+    <Box>
+      <DialogTitle>Enter Netball Match Result</DialogTitle>
+      <DialogContent>
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Quarter</TableCell>
+                <TableCell align="right">{fixture.homeTeam.name}</TableCell>
+                <TableCell align="right">{fixture.awayTeam.name}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {quarterScores.map((quarter, index) => (
+                <TableRow key={index}>
+                  <TableCell>Q{index + 1}</TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      value={quarter.home}
+                      onChange={(e) => handleScoreChange(index, 'home', parseInt(e.target.value) || 0)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      value={quarter.away}
+                      onChange={(e) => handleScoreChange(index, 'away', parseInt(e.target.value) || 0)}
+                      size="small"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell><strong>Total</strong></TableCell>
+                <TableCell align="right"><strong>{calculateTotalScore('home')}</strong></TableCell>
+                <TableCell align="right"><strong>{calculateTotalScore('away')}</strong></TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained">
+          Submit Result
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+export default NetballResultForm;

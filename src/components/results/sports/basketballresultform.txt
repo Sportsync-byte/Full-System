@@ -1,0 +1,199 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Grid,
+  TextField,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+} from '@mui/material';
+import { Fixture, BasketballScore } from '../../../types/types';
+
+interface BasketballResultFormProps {
+  fixture: Fixture;
+  onSubmit: (data: BasketballScore) => void;
+  onCancel: () => void;
+}
+
+interface QuarterScore {
+  home: number;
+  away: number;
+}
+
+const BasketballResultForm: React.FC<BasketballResultFormProps> = ({
+  fixture,
+  onSubmit,
+  onCancel,
+}) => {
+  const [quarterScores, setQuarterScores] = useState<QuarterScore[]>([
+    { home: 0, away: 0 },
+    { home: 0, away: 0 },
+    { home: 0, away: 0 },
+    { home: 0, away: 0 },
+  ]);
+
+  const [fouls, setFouls] = useState({
+    home: 0,
+    away: 0,
+  });
+
+  const [timeouts, setTimeouts] = useState({
+    home: 0,
+    away: 0,
+  });
+
+  const calculateTotalScore = (team: 'home' | 'away') => {
+    return quarterScores.reduce((total, quarter) => total + quarter[team], 0);
+  };
+
+  const handleScoreChange = (quarter: number, team: 'home' | 'away', value: number) => {
+    const newScores = [...quarterScores];
+    newScores[quarter] = {
+      ...newScores[quarter],
+      [team]: value,
+    };
+    setQuarterScores(newScores);
+  };
+
+  const handleSubmit = () => {
+    const result: BasketballScore = {
+      homeScore: calculateTotalScore('home'),
+      awayScore: calculateTotalScore('away'),
+      details: {
+        quarterScores: quarterScores.map(q => [q.home, q.away]),
+        fouls: {
+          home: fouls.home,
+          away: fouls.away,
+        },
+        timeouts: {
+          home: timeouts.home,
+          away: timeouts.away,
+        },
+      },
+    };
+
+    onSubmit(result);
+  };
+
+  return (
+    <Box>
+      <DialogTitle>Enter Basketball Match Result</DialogTitle>
+      <DialogContent>
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Quarter</TableCell>
+                <TableCell align="right">{fixture.homeTeam.name}</TableCell>
+                <TableCell align="right">{fixture.awayTeam.name}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {quarterScores.map((quarter, index) => (
+                <TableRow key={index}>
+                  <TableCell>Q{index + 1}</TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      value={quarter.home}
+                      onChange={(e) => handleScoreChange(index, 'home', parseInt(e.target.value) || 0)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      value={quarter.away}
+                      onChange={(e) => handleScoreChange(index, 'away', parseInt(e.target.value) || 0)}
+                      size="small"
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell><strong>Total</strong></TableCell>
+                <TableCell align="right"><strong>{calculateTotalScore('home')}</strong></TableCell>
+                <TableCell align="right"><strong>{calculateTotalScore('away')}</strong></TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Grid container spacing={2} sx={{ mt: 2 }}>
+          <Grid item xs={12} sm={6}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Team Fouls
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.homeTeam.name}
+                    type="number"
+                    value={fouls.home}
+                    onChange={(e) => setFouls({ ...fouls, home: parseInt(e.target.value) || 0 })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.awayTeam.name}
+                    type="number"
+                    value={fouls.away}
+                    onChange={(e) => setFouls({ ...fouls, away: parseInt(e.target.value) || 0 })}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Timeouts Used
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.homeTeam.name}
+                    type="number"
+                    value={timeouts.home}
+                    onChange={(e) => setTimeouts({ ...timeouts, home: parseInt(e.target.value) || 0 })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.awayTeam.name}
+                    type="number"
+                    value={timeouts.away}
+                    onChange={(e) => setTimeouts({ ...timeouts, away: parseInt(e.target.value) || 0 })}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained">
+          Submit Result
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+export default BasketballResultForm;

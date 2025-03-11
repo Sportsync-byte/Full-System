@@ -1,0 +1,251 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Grid,
+  TextField,
+  Typography,
+  Paper,
+  FormControlLabel,
+  Checkbox,
+} from '@mui/material';
+import { Fixture } from '../../../types/types';
+
+interface FootballResultFormProps {
+  fixture: Fixture;
+  onSubmit: (data: any) => void;
+  onCancel: () => void;
+}
+
+interface HalfScore {
+  home: number;
+  away: number;
+}
+
+const FootballResultForm: React.FC<FootballResultFormProps> = ({
+  fixture,
+  onSubmit,
+  onCancel,
+}) => {
+  const [halfScores, setHalfScores] = useState<HalfScore[]>([
+    { home: 0, away: 0 },
+    { home: 0, away: 0 },
+  ]);
+
+  const [extraTime, setExtraTime] = useState(false);
+  const [extraTimeScore, setExtraTimeScore] = useState<HalfScore>({ home: 0, away: 0 });
+  const [penalties, setPenalties] = useState(false);
+  const [penaltyScore, setPenaltyScore] = useState<HalfScore>({ home: 0, away: 0 });
+
+  const calculateTotalScore = (team: 'home' | 'away') => {
+    let total = halfScores.reduce((sum, half) => sum + half[team], 0);
+    if (extraTime) {
+      total += extraTimeScore[team];
+    }
+    return total;
+  };
+
+  const handleHalfScoreChange = (half: number, team: 'home' | 'away', value: number) => {
+    const newScores = [...halfScores];
+    newScores[half] = {
+      ...newScores[half],
+      [team]: value,
+    };
+    setHalfScores(newScores);
+  };
+
+  const handleSubmit = () => {
+    const result = {
+      homeScore: calculateTotalScore('home'),
+      awayScore: calculateTotalScore('away'),
+      details: {
+        halfScores,
+        extraTime: extraTime ? extraTimeScore : null,
+        penalties: penalties ? penaltyScore : null,
+      },
+    };
+
+    onSubmit(result);
+  };
+
+  return (
+    <Box>
+      <DialogTitle>Enter Football Match Result</DialogTitle>
+      <DialogContent>
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                First Half
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.homeTeam.name}
+                    type="number"
+                    value={halfScores[0].home}
+                    onChange={(e) => handleHalfScoreChange(0, 'home', parseInt(e.target.value) || 0)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.awayTeam.name}
+                    type="number"
+                    value={halfScores[0].away}
+                    onChange={(e) => handleHalfScoreChange(0, 'away', parseInt(e.target.value) || 0)}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Second Half
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.homeTeam.name}
+                    type="number"
+                    value={halfScores[1].home}
+                    onChange={(e) => handleHalfScoreChange(1, 'home', parseInt(e.target.value) || 0)}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    label={fixture.awayTeam.name}
+                    type="number"
+                    value={halfScores[1].away}
+                    onChange={(e) => handleHalfScoreChange(1, 'away', parseInt(e.target.value) || 0)}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={extraTime}
+                  onChange={(e) => setExtraTime(e.target.checked)}
+                />
+              }
+              label="Extra Time"
+            />
+          </Grid>
+
+          {extraTime && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Extra Time
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <TextField
+                      label={fixture.homeTeam.name}
+                      type="number"
+                      value={extraTimeScore.home}
+                      onChange={(e) => setExtraTimeScore({
+                        ...extraTimeScore,
+                        home: parseInt(e.target.value) || 0
+                      })}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      label={fixture.awayTeam.name}
+                      type="number"
+                      value={extraTimeScore.away}
+                      onChange={(e) => setExtraTimeScore({
+                        ...extraTimeScore,
+                        away: parseInt(e.target.value) || 0
+                      })}
+                      fullWidth
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          )}
+
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={penalties}
+                  onChange={(e) => setPenalties(e.target.checked)}
+                />
+              }
+              label="Penalties"
+            />
+          </Grid>
+
+          {penalties && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Penalty Shootout
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <TextField
+                      label={fixture.homeTeam.name}
+                      type="number"
+                      value={penaltyScore.home}
+                      onChange={(e) => setPenaltyScore({
+                        ...penaltyScore,
+                        home: parseInt(e.target.value) || 0
+                      })}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <TextField
+                      label={fixture.awayTeam.name}
+                      type="number"
+                      value={penaltyScore.away}
+                      onChange={(e) => setPenaltyScore({
+                        ...penaltyScore,
+                        away: parseInt(e.target.value) || 0
+                      })}
+                      fullWidth
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+          )}
+
+          <Grid item xs={12}>
+            <Paper sx={{ p: 2 }}>
+              <Typography variant="h6">
+                Final Score: {calculateTotalScore('home')} - {calculateTotalScore('away')}
+                {penalties && ` (Penalties: ${penaltyScore.home}-${penaltyScore.away})`}
+              </Typography>
+            </Paper>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained">
+          Submit Result
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+export default FootballResultForm;
