@@ -1,0 +1,143 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
+  Button,
+} from '@mui/material';
+import { SportType } from '../../../types/types';
+import { useSocket } from '../../../contexts/SocketContext';
+import Timer from '../common/Timer';
+
+interface FootballScoreboardProps {
+  format: SportType;
+}
+
+const FootballScoreboard: React.FC<FootballScoreboardProps> = ({ format }) => {
+  const socket = useSocket();
+  const [homeScore, setHomeScore] = useState(0);
+  const [awayScore, setAwayScore] = useState(0);
+  const [half, setHalf] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(
+    format === SportType.INDOOR_FOOTBALL ? 13 * 60 : 45 * 60
+  );
+  const [extraTime, setExtraTime] = useState(0);
+
+  const handleScore = (team: 'home' | 'away') => {
+    if (team === 'home') {
+      setHomeScore(prev => prev + 1);
+    } else {
+      setAwayScore(prev => prev + 1);
+    }
+
+    socket.emit('scoreUpdate', {
+      type: 'SCORE',
+      team,
+      homeScore: team === 'home' ? homeScore + 1 : homeScore,
+      awayScore: team === 'away' ? awayScore + 1 : awayScore,
+      half,
+      timeRemaining,
+      extraTime
+    });
+  };
+
+  const handleHalfTime = () => {
+    if (half === 1) {
+      setHalf(2);
+      setTimeRemaining(
+        format === SportType.INDOOR_FOOTBALL ? 13 * 60 : 45 * 60
+      );
+      socket.emit('halfTime');
+    } else {
+      handleGameEnd();
+    }
+  };
+
+  const handleGameEnd = () => {
+    setIsPlaying(false);
+    socket.emit('gameEnd', {
+      finalScore: {
+        home: homeScore,
+        away: awayScore
+      }
+    });
+  };
+
+  const addExtraTime = (minutes: number) => {
+    setExtraTime(prev => prev + minutes);
+    socket.emit('extraTimeUpdate', { extraTime: extraTime + minutes });
+  };
+
+  return (
+    <Box>
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">
+              Half {half}
+            </Typography>
+            <Timer
+              initialTime={timeRemaining + extraTime * 60}
+              isPlaying={isPlaying}
+              onTimeUpdate={setTimeRemaining}
+              onTimeEnd={handleHalfTime}
+            />
+            {extraTime > 0 && (
+              <Typography variant="h6" color="error">
+                +{extraTime}'
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              onClick={() => setIsPlaying(!isPlaying)}
+              sx={{ mt: 1, mr: 1 }}
+            >
+              {isPlaying ? 'Pause' : 'Start'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => addExtraTime(1)}
+              sx={{ mt: 1 }}
+            >
+              Add +1'
+            </Button>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">Home</Typography>
+            <Typography variant="h2">{homeScore}</Typography>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => handleScore('home')}
+              sx={{ mt: 2 }}
+            >
+              Goal
+            </Button>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">Away</Typography>
+            <Typography variant="h2">{awayScore}</Typography>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={() => handleScore('away')}
+              sx={{ mt: 2 }}
+            >
+              Goal
+            </Button>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+export default FootballScoreboard;

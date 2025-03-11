@@ -1,0 +1,200 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import { useSocket } from '../../../contexts/SocketContext';
+import Timer from '../common/Timer';
+
+const BasketballScoreboard: React.FC = () => {
+  const socket = useSocket();
+  const [homeScore, setHomeScore] = useState(0);
+  const [awayScore, setAwayScore] = useState(0);
+  const [quarter, setQuarter] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(10 * 60); // 10 minutes per quarter
+  const [homeFouls, setHomeFouls] = useState(0);
+  const [awayFouls, setAwayFouls] = useState(0);
+
+  const handleScore = (team: 'home' | 'away', points: number) => {
+    if (team === 'home') {
+      setHomeScore(prev => prev + points);
+    } else {
+      setAwayScore(prev => prev + points);
+    }
+
+    socket.emit('scoreUpdate', {
+      type: 'SCORE',
+      team,
+      points,
+      homeScore: team === 'home' ? homeScore + points : homeScore,
+      awayScore: team === 'away' ? awayScore + points : awayScore,
+      quarter,
+      timeRemaining
+    });
+  };
+
+  const handleFoul = (team: 'home' | 'away') => {
+    if (team === 'home') {
+      setHomeFouls(prev => prev + 1);
+    } else {
+      setAwayFouls(prev => prev + 1);
+    }
+
+    socket.emit('foulUpdate', {
+      team,
+      homeFouls: team === 'home' ? homeFouls + 1 : homeFouls,
+      awayFouls: team === 'away' ? awayFouls + 1 : awayFouls
+    });
+  };
+
+  const handleQuarterEnd = () => {
+    if (quarter < 4) {
+      setQuarter(prev => prev + 1);
+      setTimeRemaining(10 * 60);
+      socket.emit('quarterEnd', { quarter });
+    } else {
+      handleGameEnd();
+    }
+  };
+
+  const handleGameEnd = () => {
+    setIsPlaying(false);
+    socket.emit('gameEnd', {
+      finalScore: {
+        home: homeScore,
+        away: awayScore
+      }
+    });
+  };
+
+  return (
+    <Box>
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">
+              Quarter {quarter}
+            </Typography>
+            <Timer
+              initialTime={timeRemaining}
+              isPlaying={isPlaying}
+              onTimeUpdate={setTimeRemaining}
+              onTimeEnd={handleQuarterEnd}
+            />
+            <Button
+              variant="contained"
+              onClick={() => setIsPlaying(!isPlaying)}
+              sx={{ mt: 1 }}
+            >
+              {isPlaying ? 'Pause' : 'Start'}
+            </Button>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">Home</Typography>
+            <Typography variant="h2">{homeScore}</Typography>
+            <Typography variant="h6">Fouls: {homeFouls}</Typography>
+            <Grid container spacing={1} sx={{ mt: 2 }}>
+              <Grid item xs={4}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('home', 1)}
+                >
+                  Free Throw
+                </Button>
+              </Grid>
+              <Grid item xs={4}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('home', 2)}
+                >
+                  2 Points
+                </Button>
+              </Grid>
+              <Grid item xs={4}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('home', 3)}
+                >
+                  3 Points
+                </Button>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="error"
+                  onClick={() => handleFoul('home')}
+                >
+                  Foul
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">Away</Typography>
+            <Typography variant="h2">{awayScore}</Typography>
+            <Typography variant="h6">Fouls: {awayFouls}</Typography>
+            <Grid container spacing={1} sx={{ mt: 2 }}>
+              <Grid item xs={4}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('away', 1)}
+                >
+                  Free Throw
+                </Button>
+              </Grid>
+              <Grid item xs={4}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('away', 2)}
+                >
+                  2 Points
+                </Button>
+              </Grid>
+              <Grid item xs={4}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('away', 3)}
+                >
+                  3 Points
+                </Button>
+              </Grid>
+              <Grid item xs={12}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="error"
+                  onClick={() => handleFoul('away')}
+                >
+                  Foul
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+export default BasketballScoreboard;

@@ -1,0 +1,75 @@
+import { SportType } from '../types/types';
+
+interface SirenConfig {
+  sportType: SportType;
+  soundFile: string;
+  volume: number;
+}
+
+class SirenService {
+  private static instance: SirenService;
+  private audio: HTMLAudioElement | null = null;
+  private sirenConfigs: Map<SportType, SirenConfig>;
+
+  private constructor() {
+    this.sirenConfigs = new Map();
+    this.initializeDefaultSirens();
+  }
+
+  public static getInstance(): SirenService {
+    if (!SirenService.instance) {
+      SirenService.instance = new SirenService();
+    }
+    return SirenService.instance;
+  }
+
+  private initializeDefaultSirens() {
+    Object.values(SportType).forEach(sport => {
+      this.sirenConfigs.set(sport, {
+        sportType: sport,
+        soundFile: `/assets/sounds/${sport.toLowerCase()}-siren.mp3`,
+        volume: 1.0
+      });
+    });
+  }
+
+  public async playSiren(sportType: SportType): Promise<void> {
+    const config = this.sirenConfigs.get(sportType);
+    if (!config) return;
+
+    try {
+      if (this.audio) {
+        this.audio.pause();
+        this.audio = null;
+      }
+
+      this.audio = new Audio(config.soundFile);
+      this.audio.volume = config.volume;
+      await this.audio.play();
+    } catch (error) {
+      console.error('Error playing siren:', error);
+    }
+  }
+
+  public updateSirenConfig(sportType: SportType, config: Partial<SirenConfig>): void {
+    const currentConfig = this.sirenConfigs.get(sportType);
+    if (currentConfig) {
+      this.sirenConfigs.set(sportType, { ...currentConfig, ...config });
+    }
+  }
+
+  public stopSiren(): void {
+    if (this.audio) {
+      this.audio.pause();
+      this.audio = null;
+    }
+  }
+
+  public setVolume(volume: number): void {
+    if (this.audio) {
+      this.audio.volume = Math.max(0, Math.min(1, volume));
+    }
+  }
+}
+
+export default SirenService;
