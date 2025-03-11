@@ -1,0 +1,118 @@
+import React from 'react';
+import {
+  Paper,
+  Typography,
+  Box,
+  Timeline,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineConnector,
+  TimelineContent,
+  TimelineDot,
+  TimelineOppositeContent,
+} from '@mui/material';
+import {
+  SportsScore,
+  SportsSoccer,
+  Warning,
+  Block,
+  Sync,
+} from '@mui/icons-material';
+
+interface Event {
+  id: string;
+  minute: number;
+  type: 'goal' | 'yellowCard' | 'redCard' | 'substitution' | 'other';
+  team: 'home' | 'away';
+  player: string;
+  description: string;
+  additionalInfo?: string;
+}
+
+interface MatchTimelineProps {
+  events: Event[];
+  homeTeam: string;
+  awayTeam: string;
+}
+
+const MatchTimeline: React.FC<MatchTimelineProps> = ({
+  events,
+  homeTeam,
+  awayTeam,
+}) => {
+  const getEventIcon = (type: string) => {
+    switch (type) {
+      case 'goal':
+        return <SportsScore />;
+      case 'yellowCard':
+        return <Warning />;
+      case 'redCard':
+        return <Block />;
+      case 'substitution':
+        return <Sync />;
+      default:
+        return <SportsSoccer />;
+    }
+  };
+
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case 'goal':
+        return 'success';
+      case 'yellowCard':
+        return 'warning';
+      case 'redCard':
+        return 'error';
+      case 'substitution':
+        return 'info';
+      default:
+        return 'grey';
+    }
+  };
+
+  return (
+    <Paper sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        Match Timeline
+      </Typography>
+      <Timeline position="alternate">
+        {events.map((event) => (
+          <TimelineItem key={event.id}>
+            <TimelineOppositeContent color="text.secondary">
+              {event.minute}'
+            </TimelineOppositeContent>
+            <TimelineSeparator>
+              <TimelineDot color={getEventColor(event.type) as any}>
+                {getEventIcon(event.type)}
+              </TimelineDot>
+              <TimelineConnector />
+            </TimelineSeparator>
+            <TimelineContent>
+              <Box
+                sx={{
+                  textAlign: event.team === 'home' ? 'right' : 'left',
+                  p: 1,
+                }}
+              >
+                <Typography variant="subtitle2">
+                  {event.team === 'home' ? homeTeam : awayTeam}
+                </Typography>
+                <Typography>{event.player}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {event.description}
+                </Typography>
+                {event.additionalInfo && (
+                  <Typography variant="caption" color="text.secondary">
+                    {event.additionalInfo}
+                  </Typography>
+                )}
+              </Box>
+            </TimelineContent>
+          </TimelineItem>
+        ))}
+      </Timeline>
+    </Paper>
+  );
+};
+
+export default MatchTimeline;

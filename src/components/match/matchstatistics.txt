@@ -1,0 +1,215 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Paper,
+  Typography,
+  Grid,
+  Box,
+  LinearProgress,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+
+interface MatchStats {
+  possession: {
+    home: number;
+    away: number;
+  };
+  shots: {
+    home: number;
+    away: number;
+  };
+  shotsOnTarget: {
+    home: number;
+    away: number;
+  };
+  corners: {
+    home: number;
+    away: number;
+  };
+  fouls: {
+    home: number;
+    away: number;
+  };
+  yellowCards: {
+    home: number;
+    away: number;
+  };
+  redCards: {
+    home: number;
+    away: number;
+  };
+}
+
+interface PlayerStats {
+  id: string;
+  name: string;
+  team: 'home' | 'away';
+  goals: number;
+  assists: number;
+  minutesPlayed: number;
+  rating: number;
+}
+
+interface MatchStatisticsProps {
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+}
+
+const MatchStatistics: React.FC<MatchStatisticsProps> = ({
+  matchId,
+  homeTeam,
+  awayTeam,
+}) => {
+  const [activeTab, setActiveTab] = useState(0);
+  const [stats, setStats] = useState<MatchStats | null>(null);
+  const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchMatchStatistics();
+  }, [matchId]);
+
+  const fetchMatchStatistics = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [statsResponse, playersResponse] = await Promise.all([
+        fetch(`http://localhost:3001/api/matches/${matchId}/stats`),
+        fetch(`http://localhost:3001/api/matches/${matchId}/player-stats`),
+      ]);
+      
+      const statsData = await statsResponse.json();
+      const playersData = await playersResponse.json();
+      
+      setStats(statsData);
+      setPlayerStats(playersData.players);
+    } catch (error) {
+      setError('Failed to load match statistics');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const StatBar: React.FC<{ home: number; away: number; label: string }> = ({
+    home,
+    away,
+    label,
+  }) => (
+    <Box sx={{ mb: 2 }}>
+      <Grid container alignItems="center" spacing={2}>
+        <Grid item xs={2}>
+          <Typography align="right">{home}</Typography>
+        </Grid>
+        <Grid item xs={8}>
+          <Box sx={{ position: 'relative' }}>
+            <LinearProgress
+              variant="determinate"
+              value={50 + ((home - away) / (home + away)) * 50}
+              sx={{ height: 10, borderRadius: 5 }}
+            />
+            <Typography
+              variant="caption"
+              sx={{
+                position: 'absolute',
+                top: -20,
+                left: '50%',
+                transform: 'translateX(-50%)',
+              }}
+            >
+              {label}
+            </Typography>
+          </Box>
+        </Grid>
+        <Grid item xs={2}>
+          <Typography>{away}</Typography>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !stats) {
+    return <Alert severity="error">{error || 'Statistics not available'}</Alert>;
+  }
+
+  return (
+    <Paper>
+      <Tabs
+        value={activeTab}
+        onChange={(_, newValue) => setActiveTab(newValue)}
+        centered
+      >
+        <Tab label="Match Stats" />
+        <Tab label="Player Stats" />
+      </Tabs>
+
+      <Box sx={{ p: 3 }}>
+        {activeTab === 0 ? (
+          <>
+            <StatBar
+              home={stats.possession.home}
+              away={stats.possession.away}
+              label="Possession %"
+            />
+            <StatBar
+              home={stats.shots.home}
+              away={stats.shots.away}
+              label="Shots"
+            />
+            <StatBar
+              home={stats.shotsOnTarget.home}
+              away={stats.shotsOnTarget.away}
+              label="Shots on Target"
+            />
+            <StatBar
+              home={stats.corners.home}
+              away={stats.corners.away}
+              label="Corners"
+            />
+            <StatBar
+              home={stats.fouls.home}
+              away={stats.fouls.away}
+              label="Fouls"
+            />
+            <StatBar
+              home={stats.yellowCards.home}
+              away={stats.yellowCards.away}
+              label="Yellow Cards"
+            />
+            <StatBar
+              home={stats.redCards.home}
+              away={stats.redCards.away}
+              label="Red Cards"
+            />
+          </>
+        ) : (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Player</TableCell>
+                  <TableCell>Team</TableCell>
+                  <TableCell align="center">Goals</TableCell>
+                  <TableCell align="center">Assists</TableCell>
+                  <TableCell align="center">Minutes</TableCell>
+                  <TableCell align="center">Rating</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>

@@ -1,0 +1,154 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Paper,
+  Typography,
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  CircularProgress,
+  Button,
+  Chip,
+} from '@mui/material';
+import { useSocket } from '../../contexts/SocketContext';
+
+interface Commentary {
+  id: string;
+  minute: number;
+  text: string;
+  type: 'important' | 'normal' | 'stats';
+  timestamp: string;
+}
+
+interface MatchCommentaryProps {
+  matchId: string;
+}
+
+const MatchCommentary: React.FC<MatchCommentaryProps> = ({ matchId }) => {
+  const [commentary, setCommentary] = useState<Commentary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const commentaryRef = useRef<HTMLDivElement>(null);
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    fetchCommentary();
+    setupLiveCommentary();
+
+    return () => {
+      socket?.off('match_commentary');
+    };
+  }, [matchId]);
+
+  const setupLiveCommentary = () => {
+    socket?.on('match_commentary', (newComment: Commentary) => {
+      setCommentary(prev => [newComment, ...prev]);
+      if (commentaryRef.current) {
+        commentaryRef.current.scrollTop = 0;
+      }
+    });
+  };
+
+  const fetchCommentary = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/matches/${matchId}/commentary?page=${page}`
+      );
+      const data = await response.json();
+      
+      if (page === 1) {
+        setCommentary(data.commentary);
+      } else {
+        setCommentary(prev => [...prev, ...data.commentary]);
+      }
+      
+      setHasMore(data.hasMore);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch commentary:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadMore = () => {
+    setPage(prev => prev + 1);
+    fetchCommentary();
+  };
+
+  const getCommentaryColor = (type: string) => {
+    switch (type) {
+      case 'important':
+        return 'error';
+      case 'stats':
+        return 'info';
+      default:
+        return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Paper>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Live Commentary
+        </Typography>
+      </Box>
+      <Divider />
+      <Box
+        ref={commentaryRef}
+        sx={{
+          height: 400,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <List>
+          {commentary.map((comment) => (
+            <React.Fragment key={comment.id}>
+              <ListItem>
+                <ListItemText
+                  primary={
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Chip
+                        label={`${comment.minute}'`}
+                        size="small"
+                        color={getCommentaryColor(comment.type) as any}
+                      />
+                      <Typography
+                        component="span"
+                        variant="body1"
+                        color={comment.type === 'important' ? 'error' : 'inherit'}
+                      >
+                        {comment.text}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={new Date(comment.timestamp).toLocaleTimeString()}
+                />
+              </ListItem>
+              <Divider component="li" />
+            </React.Fragment>
+          ))}
+        </List>
+        {hasMore && (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Button onClick={loadMore}>Load More</Button>
+          </Box>
+        )}
+      </Box>
+    </Paper>
+  );
+};
+
+export default MatchCommentary;

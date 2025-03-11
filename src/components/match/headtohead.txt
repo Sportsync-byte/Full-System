@@ -1,0 +1,203 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Paper,
+  Typography,
+  Box,
+  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+  Alert,
+  Chip,
+} from '@mui/material';
+
+interface MatchResult {
+  id: string;
+  date: string;
+  competition: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number;
+  awayScore: number;
+  winner: string;
+}
+
+interface HeadToHeadStats {
+  totalMatches: number;
+  wins: {
+    home: number;
+    away: number;
+    draws: number;
+  };
+  goals: {
+    home: number;
+    away: number;
+  };
+  form: {
+    home: ('W' | 'D' | 'L')[];
+    away: ('W' | 'D' | 'L')[];
+  };
+}
+
+interface HeadToHeadProps {
+  homeTeam: string;
+  awayTeam: string;
+  homeTeamId: string;
+  awayTeamId: string;
+}
+
+const HeadToHead: React.FC<HeadToHeadProps> = ({
+  homeTeam,
+  awayTeam,
+  homeTeamId,
+  awayTeamId,
+}) => {
+  const [stats, setStats] = useState<HeadToHeadStats | null>(null);
+  const [previousMatches, setPreviousMatches] = useState<MatchResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchHeadToHead();
+  }, [homeTeamId, awayTeamId]);
+
+  const fetchHeadToHead = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const [statsResponse, matchesResponse] = await Promise.all([
+        fetch(`http://localhost:3001/api/head-to-head/${homeTeamId}/${awayTeamId}/stats`),
+        fetch(`http://localhost:3001/api/head-to-head/${homeTeamId}/${awayTeamId}/matches`),
+      ]);
+
+      const statsData = await statsResponse.json();
+      const matchesData = await matchesResponse.json();
+
+      setStats(statsData);
+      setPreviousMatches(matchesData.matches);
+    } catch (error) {
+      setError('Failed to load head-to-head statistics');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getFormChipColor = (result: 'W' | 'D' | 'L') => {
+    switch (result) {
+      case 'W':
+        return 'success';
+      case 'D':
+        return 'warning';
+      case 'L':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !stats) {
+    return <Alert severity="error">{error || 'Statistics not available'}</Alert>;
+  }
+
+  return (
+    <Paper sx={{ p: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Head to Head
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Box sx={{ textAlign: 'center', mb: 3 }}>
+            <Typography variant="h4">
+              {stats.wins.home} - {stats.wins.draws} - {stats.wins.away}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Total Matches: {stats.totalMatches}
+            </Typography>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography variant="subtitle1">{homeTeam} Form</Typography>
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
+              {stats.form.home.map((result, index) => (
+                <Chip
+                  key={index}
+                  label={result}
+                  color={getFormChipColor(result)}
+                  size="small"
+                />
+              ))}
+            </Box>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12} sm={6}>
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography variant="subtitle1">{awayTeam} Form</Typography>
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mt: 1 }}>
+              {stats.form.away.map((result, index) => (
+                <Chip
+                  key={index}
+                  label={result}
+                  color={getFormChipColor(result)}
+                  size="small"
+                />
+              ))}
+            </Box>
+          </Box>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Typography variant="h6" gutterBottom>
+            Previous Meetings
+          </Typography>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Competition</TableCell>
+                  <TableCell>Home Team</TableCell>
+                  <TableCell>Score</TableCell>
+                  <TableCell>Away Team</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {previousMatches.map((match) => (
+                  <TableRow key={match.id}>
+                    <TableCell>
+                      {new Date(match.date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{match.competition}</TableCell>
+                    <TableCell>{match.homeTeam}</TableCell>
+                    <TableCell>
+                      {match.homeScore} - {match.awayScore}
+                    </TableCell>
+                    <TableCell>{match.awayTeam}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Grid>
+      </Grid>
+    </Paper>
+  );
+};
+
+export default HeadToHead;

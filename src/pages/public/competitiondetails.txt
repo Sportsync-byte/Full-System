@@ -1,0 +1,149 @@
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  Typography,
+  Tabs,
+  Tab,
+  Box,
+  Grid,
+  Avatar,
+  CircularProgress,
+  Alert,
+  Chip,
+  Button,
+} from '@mui/material';
+import StandingsTable from './components/StandingsTable';
+import FixturesList from './components/FixturesList';
+import StatisticsTable from './components/StatisticsTable';
+
+interface Competition {
+  id: string;
+  name: string;
+  logo: string;
+  sport: string;
+  season: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  teams: number;
+  currentRound: string;
+}
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
+  <div role="tabpanel" hidden={value !== index}>
+    {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+  </div>
+);
+
+const CompetitionDetails: React.FC = () => {
+  const { competitionId } = useParams<{ competitionId: string }>();
+  const [activeTab, setActiveTab] = useState(0);
+  const [competition, setCompetition] = useState<Competition | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCompetitionData();
+  }, [competitionId]);
+
+  const fetchCompetitionData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`http://localhost:3001/api/competitions/${competitionId}`);
+      const data = await response.json();
+      setCompetition(data);
+    } catch (error) {
+      setError('Failed to load competition data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !competition) {
+    return (
+      <Container>
+        <Alert severity="error">{error || 'Competition not found'}</Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={3} alignItems="center">
+          <Grid item>
+            <Avatar
+              src={competition.logo}
+              alt={competition.name}
+              sx={{ width: 120, height: 120 }}
+            />
+          </Grid>
+          <Grid item xs>
+            <Typography variant="h4">{competition.name}</Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              {competition.sport} - {competition.season}
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Chip
+                label={competition.status}
+                color={competition.status === 'active' ? 'success' : 'default'}
+                sx={{ mr: 1 }}
+              />
+              <Chip label={`${competition.teams} Teams`} sx={{ mr: 1 }} />
+              <Chip label={`Round: ${competition.currentRound}`} />
+            </Box>
+          </Grid>
+          <Grid item>
+            <Button variant="contained" href={`/competitions/${competitionId}/calendar`}>
+              Download Calendar
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab label="Standings" />
+          <Tab label="Fixtures" />
+          <Tab label="Statistics" />
+        </Tabs>
+
+        <TabPanel value={activeTab} index={0}>
+          <StandingsTable competitionId={competitionId} />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={1}>
+          <FixturesList competitionId={competitionId} />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={2}>
+          <StatisticsTable competitionId={competitionId} />
+        </TabPanel>
+      </Paper>
+    </Container>
+  );
+};
+
+export default CompetitionDetails;

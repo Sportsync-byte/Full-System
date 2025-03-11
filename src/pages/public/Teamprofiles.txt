@@ -1,0 +1,230 @@
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  Container,
+  Paper,
+  Typography,
+  Grid,
+  Tabs,
+  Tab,
+  Box,
+  Avatar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+
+interface TeamInfo {
+  id: string;
+  name: string;
+  logo: string;
+  sport: string;
+  founded: string;
+  venue: string;
+  coach: string;
+  website: string;
+}
+
+interface Match {
+  id: string;
+  date: string;
+  competition: string;
+  opponent: string;
+  isHome: boolean;
+  score: string;
+  result: 'W' | 'L' | 'D';
+}
+
+interface Player {
+  id: string;
+  name: string;
+  number: number;
+  position: string;
+  nationality: string;
+  appearances: number;
+  goals: number;
+}
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
+  <div role="tabpanel" hidden={value !== index}>
+    {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+  </div>
+);
+
+const TeamProfile: React.FC = () => {
+  const { teamId } = useParams<{ teamId: string }>();
+  const [activeTab, setActiveTab] = useState(0);
+  const [teamInfo, setTeamInfo] = useState<TeamInfo | null>(null);
+  const [recentMatches, setRecentMatches] = useState<Match[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchTeamData();
+  }, [teamId]);
+
+  const fetchTeamData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [teamResponse, matchesResponse, playersResponse] = await Promise.all([
+        fetch(`http://localhost:3001/api/teams/${teamId}`),
+        fetch(`http://localhost:3001/api/teams/${teamId}/matches`),
+        fetch(`http://localhost:3001/api/teams/${teamId}/players`),
+      ]);
+
+      const teamData = await teamResponse.json();
+      const matchesData = await matchesResponse.json();
+      const playersData = await playersResponse.json();
+
+      setTeamInfo(teamData);
+      setRecentMatches(matchesData.matches);
+      setPlayers(playersData.players);
+    } catch (error) {
+      setError('Failed to load team data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error || !teamInfo) {
+    return (
+      <Container>
+        <Alert severity="error">{error || 'Team not found'}</Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={3} alignItems="center">
+          <Grid item>
+            <Avatar
+              src={teamInfo.logo}
+              alt={teamInfo.name}
+              sx={{ width: 120, height: 120 }}
+            />
+          </Grid>
+          <Grid item xs>
+            <Typography variant="h4">{teamInfo.name}</Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              {teamInfo.sport}
+            </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2">Founded: {teamInfo.founded}</Typography>
+              <Typography variant="body2">Home: {teamInfo.venue}</Typography>
+              <Typography variant="body2">Coach: {teamInfo.coach}</Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab label="Recent Matches" />
+          <Tab label="Squad" />
+        </Tabs>
+
+        <TabPanel value={activeTab} index={0}>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Competition</TableCell>
+                  <TableCell>Opponent</TableCell>
+                  <TableCell>Score</TableCell>
+                  <TableCell>Result</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {recentMatches.map((match) => (
+                  <TableRow key={match.id}>
+                    <TableCell>{new Date(match.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{match.competition}</TableCell>
+                    <TableCell>
+                      {match.isHome ? 'vs' : '@'} {match.opponent}
+                    </TableCell>
+                    <TableCell>{match.score}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={match.result}
+                        color={
+                          match.result === 'W'
+                            ? 'success'
+                            : match.result === 'L'
+                            ? 'error'
+                            : 'default'
+                        }
+                        size="small"
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={1}>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Number</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Position</TableCell>
+                  <TableCell>Nationality</TableCell>
+                  <TableCell align="center">Appearances</TableCell>
+                  <TableCell align="center">Goals</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {players.map((player) => (
+                  <TableRow key={player.id}>
+                    <TableCell>{player.number}</TableCell>
+                    <TableCell>{player.name}</TableCell>
+                    <TableCell>{player.position}</TableCell>
+                    <TableCell>{player.nationality}</TableCell>
+                    <TableCell align="center">{player.appearances}</TableCell>
+                    <TableCell align="center">{player.goals}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </TabPanel>
+      </Paper>
+    </Container>
+  );
+};
+
+export default TeamProfile;

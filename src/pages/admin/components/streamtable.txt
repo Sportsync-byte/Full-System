@@ -1,0 +1,230 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  IconButton,
+  Chip,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+} from '@mui/material';
+import {
+  Stop as StopIcon,
+  Visibility as ViewIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material';
+
+interface Stream {
+  id: string;
+  title: string;
+  status: string;
+  viewerCount: number;
+  startTime: string;
+  endTime?: string;
+  createdBy: string;
+}
+
+interface StreamTableProps {
+  searchTerm: string;
+  statusFilter: string;
+}
+
+const StreamTable: React.FC<StreamTableProps> = ({ searchTerm, statusFilter }) => {
+  const [streams, setStreams] = useState<Stream[]>([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
+  const [openDialog, setOpenDialog] = useState(false);
+
+  useEffect(() => {
+    fetchStreams();
+  }, [page, rowsPerPage, searchTerm, statusFilter]);
+
+  const fetchStreams = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/admin/streams?page=${page}&limit=${rowsPerPage}&search=${searchTerm}&status=${statusFilter}`
+      );
+      const data = await response.json();
+      setStreams(data.streams);
+    } catch (error) {
+      console.error('Failed to fetch streams:', error);
+    }
+  };
+
+  const handleStopStream = async (streamId: string) => {
+    if (!window.confirm('Are you sure you want to stop this stream?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/admin/streams/${streamId}/stop`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        fetchStreams();
+      }
+    } catch (error) {
+      console.error('Failed to stop stream:', error);
+    }
+  };
+
+  const handleDeleteStream = async (streamId: string) => {
+    if (!window.confirm('Are you sure you want to delete this stream?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/admin/streams/${streamId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchStreams();
+      }
+    } catch (error) {
+      console.error('Failed to delete stream:', error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'live':
+        return 'success';
+      case 'scheduled':
+        return 'warning';
+      case 'ended':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  return (
+    <>
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Viewers</TableCell>
+              <TableCell>Start Time</TableCell>
+              <TableCell>End Time</TableCell>
+              <TableCell>Created By</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {streams.map((stream) => (
+              <TableRow key={stream.id}>
+                <TableCell>{stream.title}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={stream.status}
+                    color={getStatusColor(stream.status) as any}
+                  />
+                </TableCell>
+                <TableCell>{stream.viewerCount}</TableCell>
+                <TableCell>{new Date(stream.startTime).toLocaleString()}</TableCell>
+                <TableCell>
+                  {stream.endTime ? new Date(stream.endTime).toLocaleString() : '-'}
+                </TableCell>
+                <TableCell>{stream.createdBy}</TableCell>
+                <TableCell>
+                  <IconButton
+                    onClick={() => {
+                      setSelectedStream(stream);
+                      setOpenDialog(true);
+                    }}
+                  >
+                    <ViewIcon />
+                  </IconButton>
+                  {stream.status === 'live' && (
+                    <IconButton onClick={() => handleStopStream(stream.id)}>
+                      <StopIcon />
+                    </IconButton>
+                  )}
+                  <IconButton onClick={() => handleDeleteStream(stream.id)}>
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <TablePagination
+        component="div"
+        count={-1}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={(_, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(event) => {
+          setRowsPerPage(parseInt(event.target.value, 10));
+          setPage(0);
+        }}
+        rowsPerPageOptions={[5, 10, 25, 50]}
+      />
+
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Stream Details</DialogTitle>
+        <DialogContent>
+          {selectedStream && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+              <TextField
+                label="Stream Title"
+                value={selectedStream.title}
+                InputProps={{ readOnly: true }}
+                fullWidth
+              />
+              <TextField
+                label="Status"
+                value={selectedStream.status}
+                InputProps={{ readOnly: true }}
+              />
+              <TextField
+                label="Current Viewers"
+                value={selectedStream.viewerCount}
+                InputProps={{ readOnly: true }}
+              />
+              <TextField
+                label="Start Time"
+                value={new Date(selectedStream.startTime).toLocaleString()}
+                InputProps={{ readOnly: true }}
+              />
+              {selectedStream.endTime && (
+                <TextField
+                  label="End Time"
+                  value={new Date(selectedStream.endTime).toLocaleString()}
+                  InputProps={{ readOnly: true }}
+                />
+              )}
+              <TextField
+                label="Created By"
+                value={selectedStream.createdBy}
+                InputProps={{ readOnly: true }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+};
+
+export default StreamTable;

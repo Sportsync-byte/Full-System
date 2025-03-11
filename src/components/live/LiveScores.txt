@@ -1,0 +1,207 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  Grid,
+  Chip,
+  IconButton,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  CircularProgress,
+} from '@mui/material';
+import {
+  Refresh as RefreshIcon,
+  Timer as TimerIcon,
+  SportsSoccer,
+  SportsCricket,
+  SportsRugby,
+  SportsBasketball,
+} from '@mui/icons-material';
+import { useSocket } from '../../contexts/SocketContext';
+
+interface LiveMatch {
+  id: string;
+  sport: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number | string;
+  awayScore: number | string;
+  status: string;
+  period: string;
+  timeElapsed: string;
+  competition: string;
+  lastUpdate: string;
+}
+
+const LiveScores: React.FC = () => {
+  const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    fetchLiveMatches();
+    setupSocketListeners();
+
+    const interval = setInterval(fetchLiveMatches, 30000); // Refresh every 30 seconds
+
+    return () => {
+      clearInterval(interval);
+      socket?.off('score_update');
+      socket?.off('match_status_update');
+    };
+  }, []);
+
+  const setupSocketListeners = () => {
+    socket?.on('score_update', handleScoreUpdate);
+    socket?.on('match_status_update', handleStatusUpdate);
+  };
+
+  const fetchLiveMatches = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/live-matches');
+      const data = await response.json();
+      setMatches(data.matches);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch live matches:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleScoreUpdate = (update: { matchId: string; homeScore: number; awayScore: number }) => {
+    setMatches(prevMatches =>
+      prevMatches.map(match =>
+        match.id === update.matchId
+          ? { ...match, homeScore: update.homeScore, awayScore: update.awayScore }
+          : match
+      )
+    );
+  };
+
+  const handleStatusUpdate = (update: { matchId: string; status: string; period: string; timeElapsed: string }) => {
+    setMatches(prevMatches =>
+      prevMatches.map(match =>
+        match.id === update.matchId
+          ? { ...match, ...update }
+          : match
+      )
+    );
+  };
+
+  const getSportIcon = (sport: string) => {
+    switch (sport.toLowerCase()) {
+      case 'football':
+        return <SportsSoccer />;
+      case 'cricket':
+        return <SportsCricket />;
+      case 'rugby':
+        return <SportsRugby />;
+      case 'basketball':
+        return <SportsBasketball />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'live':
+        return 'success';
+      case 'halftime':
+        return 'warning';
+      case 'finished':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5">Live Scores</Typography>
+        <IconButton onClick={fetchLiveMatches}>
+          <RefreshIcon />
+        </IconButton>
+      </Box>
+
+      <Grid container spacing={3}>
+        {matches.map((match) => (
+          <Grid item xs={12} sm={6} md={4} key={match.id}>
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  {getSportIcon(match.sport)}
+                  <Typography sx={{ ml: 1 }}>{match.sport}</Typography>
+                  <Chip
+                    label={match.status}
+                    color={getStatusColor(match.status) as any}
+                    size="small"
+                    sx={{ ml: 'auto' }}
+                  />
+                </Box>
+
+                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {match.competition}
+                  </Typography>
+                </Box>
+
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={5}>
+                    <Typography variant="body1" align="right">
+                      {match.homeTeam}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={2}>
+                    <Typography variant="h6" align="center">
+                      {match.homeScore} - {match.awayScore}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={5}>
+                    <Typography variant="body1" align="left">
+                      {match.awayTeam}
+                    </Typography>
+                  </Grid>
+                </Grid>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mt: 2 }}>
+                  <TimerIcon fontSize="small" />
+                  <Typography variant="body2" sx={{ ml: 1 }}>
+                    {match.period} {match.timeElapsed}
+                  </Typography>
+                </Box>
+              </CardContent>
+              <CardActions>
+                <Button size="small" fullWidth href={`/match/${match.id}`}>
+                  View Details
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {matches.length === 0 && (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography color="text.secondary">
+            No live matches at the moment
+          </Typography>
+        </Paper>
+      )}
+    </Box>
+  );
+};
+
+export default LiveScores;
