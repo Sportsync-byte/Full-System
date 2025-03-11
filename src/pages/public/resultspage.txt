@@ -1,0 +1,147 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  TextField,
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers';
+import { format } from 'date-fns';
+import { Fixture, SportType } from '../../types/types';
+
+const ResultsPage: React.FC = () => {
+  const [results, setResults] = useState<Fixture[]>([]);
+  const [selectedSport, setSelectedSport] = useState<SportType | 'ALL'>('ALL');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchResults();
+  }, [selectedSport, selectedDate]);
+
+  const fetchResults = async () => {
+    try {
+      let url = 'http://localhost:3001/api/fixtures/results?';
+      if (selectedSport !== 'ALL') {
+        url += `sport=${selectedSport}&`;
+      }
+      if (selectedDate) {
+        url += `date=${selectedDate.toISOString()}`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+      setResults(data);
+    } catch (error) {
+      console.error('Error fetching results:', error);
+    }
+  };
+
+  const filteredResults = results.filter(result => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      result.homeTeam.name.toLowerCase().includes(searchLower) ||
+      result.awayTeam.name.toLowerCase().includes(searchLower) ||
+      result.venue.name.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const renderScore = (fixture: Fixture) => {
+    if (!fixture.score) return '-';
+
+    switch (fixture.sportType) {
+      case SportType.CRICKET_T20:
+      case SportType.CRICKET_ODI:
+      case SportType.CRICKET_MULTI_DAY:
+        return `${fixture.score.homeScore}/${fixture.score.details?.innings[0].wickets} - ${fixture.score.awayScore}/${fixture.score.details?.innings[1].wickets}`;
+      default:
+        return `${fixture.score.homeScore} - ${fixture.score.awayScore}`;
+    }
+  };
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" gutterBottom>
+        Match Results
+      </Typography>
+
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={4}>
+          <FormControl fullWidth>
+            <InputLabel>Sport</InputLabel>
+            <Select
+              value={selectedSport}
+              onChange={(e) => setSelectedSport(e.target.value as SportType | 'ALL')}
+            >
+              <MenuItem value="ALL">All Sports</MenuItem>
+              {Object.values(SportType).map((sport) => (
+                <MenuItem key={sport} value={sport}>
+                  {sport.replace(/_/g, ' ')}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <DatePicker
+            label="Date"
+            value={selectedDate}
+            onChange={(newValue) => setSelectedDate(newValue)}
+          />
+        </Grid>
+        <Grid item xs={12} sm={4}>
+          <TextField
+            fullWidth
+            label="Search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </Grid>
+      </Grid>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Date</TableCell>
+              <TableCell>Sport</TableCell>
+              <TableCell>Home Team</TableCell>
+              <TableCell>Score</TableCell>
+              <TableCell>Away Team</TableCell>
+              <TableCell>Venue</TableCell>
+              <TableCell>Competition</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredResults.map((result) => (
+              <TableRow key={result.id}>
+                <TableCell>
+                  {format(new Date(result.startTime), 'dd/MM/yyyy HH:mm')}
+                </TableCell>
+                <TableCell>{result.sportType.replace(/_/g, ' ')}</TableCell>
+                <TableCell>{result.homeTeam.name}</TableCell>
+                <TableCell>{renderScore(result)}</TableCell>
+                <TableCell>{result.awayTeam.name}</TableCell>
+                <TableCell>{result.venue.name}</TableCell>
+                <TableCell>{result.competition?.name || '-'}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Container>
+  );
+};
+
+export default ResultsPage;

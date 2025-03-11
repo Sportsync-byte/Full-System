@@ -1,0 +1,117 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+} from '@mui/material';
+import { Competition, Standing, SportType } from '../../types/types';
+
+const StandingsPage: React.FC = () => {
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [selectedCompetition, setSelectedCompetition] = useState<string>('');
+  const [standings, setStandings] = useState<Standing[]>([]);
+
+  useEffect(() => {
+    fetchCompetitions();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCompetition) {
+      fetchStandings(selectedCompetition);
+    }
+  }, [selectedCompetition]);
+
+  const fetchCompetitions = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/competitions/active');
+      const data = await response.json();
+      setCompetitions(data);
+    } catch (error) {
+      console.error('Error fetching competitions:', error);
+    }
+  };
+
+  const fetchStandings = async (competitionId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/competitions/${competitionId}/standings`);
+      const data = await response.json();
+      setStandings(data);
+    } catch (error) {
+      console.error('Error fetching standings:', error);
+    }
+  };
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" gutterBottom>
+        Competition Standings
+      </Typography>
+
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6}>
+          <FormControl fullWidth>
+            <InputLabel>Competition</InputLabel>
+            <Select
+              value={selectedCompetition}
+              onChange={(e) => setSelectedCompetition(e.target.value)}
+            >
+              {competitions.map((competition) => (
+                <MenuItem key={competition.id} value={competition.id}>
+                  {competition.name} ({competition.sportType.replace(/_/g, ' ')})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+      </Grid>
+
+      {selectedCompetition && (
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Position</TableCell>
+                <TableCell>Team</TableCell>
+                <TableCell align="center">Played</TableCell>
+                <TableCell align="center">Won</TableCell>
+                <TableCell align="center">Lost</TableCell>
+                <TableCell align="center">Drawn</TableCell>
+                <TableCell align="center">For</TableCell>
+                <TableCell align="center">Against</TableCell>
+                <TableCell align="center">Points</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {standings.map((standing, index) => (
+                <TableRow key={standing.teamId}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>{standing.teamName}</TableCell>
+                  <TableCell align="center">{standing.played}</TableCell>
+                  <TableCell align="center">{standing.won}</TableCell>
+                  <TableCell align="center">{standing.lost}</TableCell>
+                  <TableCell align="center">{standing.drawn}</TableCell>
+                  <TableCell align="center">{standing.forScore}</TableCell>
+                  <TableCell align="center">{standing.againstScore}</TableCell>
+                  <TableCell align="center">{standing.points}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Container>
+  );
+};
+
+export default StandingsPage;

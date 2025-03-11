@@ -6,14 +6,35 @@ import {
   Typography,
   Paper,
   Grid,
+  TextField,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import StreamViewer from '../components/streaming/StreamViewer';
 import { Fixture } from '../types/types';
+import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/SocketContext';
+
+interface ChatMessage {
+  id: string;
+  userId: string;
+  userName: string;
+  message: string;
+  timestamp: Date;
+}
 
 const WatchPage: React.FC = () => {
   const { fixtureId } = useParams<{ fixtureId: string }>();
   const [fixture, setFixture] = useState<Fixture | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const socket = useSocket();
 
   useEffect(() => {
     const fetchFixture = async () => {
@@ -31,6 +52,45 @@ const WatchPage: React.FC = () => {
 
     fetchFixture();
   }, [fixtureId]);
+
+  useEffect(() => {
+    if (fixtureId) {
+      socket.emit('joinChat', fixtureId);
+
+      socket.on('chatMessage', (message: ChatMessage) => {
+        setMessages(prev => [...prev, message]);
+      });
+
+      return () => {
+        socket.emit('leaveChat', fixtureId);
+        socket.off('chatMessage');
+      };
+    }
+  }, [fixtureId, socket]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !user || !fixtureId) return;
+
+    const message = {
+      gameId: fixtureId,
+      userId: user.id,
+      userName: user.name,
+      message: newMessage,
+      timestamp: new Date(),
+    };
+
+    socket.emit('sendMessage', message);
+    setNewMessage('');
+  };
 
   if (error) {
     return (
@@ -53,12 +113,9 @@ const WatchPage: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        <Grid item xs={12}>
+        <Grid item xs={12} md={8}>
           <StreamViewer fixture={fixture} />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ p: 2, mt: 2 }}>
             <Typography variant="h6" gutterBottom>
               Match Details
             </Typography>
@@ -68,6 +125,64 @@ const WatchPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary">
               {fixture.venue.name}
             </Typography>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ height: '600px', display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="h6" sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+              Live Chat
+            </Typography>
+
+            <List sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+              {messages.map((msg) => (
+                <React.Fragment key={msg.id}>
+                  <ListItem>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="subtitle2">{msg.userName}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(msg.timestamp).toLocaleTimeString()}
+                          </Typography>
+                        </Box>
+                      }
+                      secondary={msg.message}
+                    />
+                  </ListItem>
+                  <Divider component="li" />
+                </React.Fragment>
+              ))}
+              <div ref={messagesEndRef} />
+            </List>
+
+            <Box
+              component="form"
+              onSubmit={handleSendMessage}
+              sx={{
+                p: 2,
+                borderTop: 1,
+                borderColor: 'divider',
+                display: 'flex',
+                gap: 1,
+              }}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                placeholder={user ? "Type a message..." : "Please login to chat"}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                disabled={!user}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={!user || !newMessage.trim()}
+              >
+                Send
+              </Button>
+            </Box>
           </Paper>
         </Grid>
       </Grid>
