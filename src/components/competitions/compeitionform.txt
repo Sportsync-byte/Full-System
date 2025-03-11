@@ -1,0 +1,178 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Button,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+  Chip,
+  OutlinedInput,
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers';
+import { Competition, SportType, Team } from '../../types/types';
+
+interface CompetitionFormProps {
+  competition?: Competition | null;
+  onSubmit: (data: Partial<Competition>) => void;
+  onCancel: () => void;
+}
+
+const CompetitionForm: React.FC<CompetitionFormProps> = ({
+  competition,
+  onSubmit,
+  onCancel,
+}) => {
+  const [formData, setFormData] = useState<Partial<Competition>>({
+    sportType: SportType.CRICKET_T20,
+    type: 'LEAGUE',
+    startDate: new Date(),
+    endDate: new Date(),
+    teams: [],
+  });
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
+
+  useEffect(() => {
+    if (competition) {
+      setFormData(competition);
+    }
+    fetchTeams();
+  }, [competition]);
+
+  const fetchTeams = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/teams');
+      const data = await response.json();
+      setAvailableTeams(data);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    }
+  };
+
+  const handleChange = (field: keyof Competition, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <Box component="form" onSubmit={handleSubmit}>
+      <DialogTitle>
+        {competition ? 'Edit Competition' : 'Create New Competition'}
+      </DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Competition Name"
+              value={formData.name || ''}
+              onChange={(e) => handleChange('name', e.target.value)}
+              required
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Sport</InputLabel>
+              <Select
+                value={formData.sportType}
+                onChange={(e) => handleChange('sportType', e.target.value)}
+                required
+              >
+                {Object.values(SportType).map((sport) => (
+                  <MenuItem key={sport} value={sport}>
+                    {sport.replace(/_/g, ' ')}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Competition Type</InputLabel>
+              <Select
+                value={formData.type}
+                onChange={(e) => handleChange('type', e.target.value)}
+                required
+              >
+                <MenuItem value="LEAGUE">League</MenuItem>
+                <MenuItem value="KNOCKOUT">Knockout</MenuItem>
+                <MenuItem value="ROUND_ROBIN">Round Robin</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <DatePicker
+              label="Start Date"
+              value={formData.startDate}
+              onChange={(date) => handleChange('startDate', date)}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <DatePicker
+              label="End Date"
+              value={formData.endDate}
+              onChange={(date) => handleChange('endDate', date)}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Teams</InputLabel>
+              <Select
+                multiple
+                value={formData.teams?.map(team => team.id) || []}
+                onChange={(e) => {
+                  const selectedTeams = availableTeams.filter(team => 
+                    (e.target.value as string[]).includes(team.id)
+                  );
+                  handleChange('teams', selectedTeams);
+                }}
+                input={<OutlinedInput label="Teams" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selected.map((teamId) => {
+                      const team = availableTeams.find(t => t.id === teamId);
+                      return team ? (
+                        <Chip key={team.id} label={team.name} />
+                      ) : null;
+                    })}
+                  </Box>
+                )}
+              >
+                {availableTeams.map((team) => (
+                  <MenuItem key={team.id} value={team.id}>
+                    {team.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="contained">
+          {competition ? 'Update' : 'Create'}
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+export default CompetitionForm;

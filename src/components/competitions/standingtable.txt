@@ -1,0 +1,74 @@
+import React from 'react';
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from '@mui/material';
+import { Competition, Standing } from '../../types/types';
+
+interface StandingsTableProps {
+  competition: Competition;
+  onClose: () => void;
+}
+
+const StandingsTable: React.FC<StandingsTableProps> = ({
+  competition,
+  onClose,
+}) => {
+  return (
+    <>
+      <DialogTitle>
+        {competition.name} - Standings
+      </DialogTitle>
+      <DialogContent>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Position</TableCell>
+                <TableCell>Team</TableCell>
+                <TableCell align="center">Played</TableCell>
+                <TableCell align="center">Won</TableCell>
+                <TableCell align="center">Lost</TableCell>
+                <TableCell align="center">Drawn</TableCell>
+                <TableCell align="center">For</TableCell>
+                <TableCell align="center">Against</TableCell>
+                <TableCell align="center">Points</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {competition.standings?.map((standing, index) => (
+                <TableRow key={standing.teamId}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>{standing.teamName}</TableCell>
+                  <TableCell align="center">{standing.played}</TableCell>
+                  <TableCell align="center">{standing.won}</TableCell>
+                  <TableCell align="center">{standing.lost}</TableCell>
+                  <TableCell align="center">{standing.drawn}</TableCell>
+                  <TableCell align="center">{standing.forScore}</TableCell>
+                  <TableCell align="center">{standing.againstScore}</TableCell>
+                  <TableCell align="center">{standing.points}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </>
+  );
+};
+
+export default StandingsTable;
