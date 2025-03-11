@@ -1,0 +1,71 @@
+import express from 'express';
+import { PrismaClient } from '@prisma/client';
+import { auth } from '../middleware/auth';
+
+const router = express.Router();
+const prisma = new PrismaClient();
+
+// Create subscription
+router.post('/', auth, async (req, res) => {
+  try {
+    const { organizationId, type, allowedSports, maxGames, expiryDate } = req.body;
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        organizationId,
+        type,
+        allowedSports,
+        maxGames,
+        expiryDate: new Date(expiryDate),
+      }
+    });
+
+    res.status(201).json(subscription);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update subscription
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { type, allowedSports, maxGames, expiryDate, isActive } = req.body;
+
+    const subscription = await prisma.subscription.update({
+      where: { id: req.params.id },
+      data: {
+        type,
+        allowedSports,
+        maxGames,
+        expiryDate: new Date(expiryDate),
+        isActive
+      }
+    });
+
+    res.json(subscription);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get subscription details
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { id: req.params.id },
+      include: {
+        organization: true
+      }
+    });
+
+    if (!subscription) {
+      return res.status(404).json({ message: 'Subscription not found' });
+    }
+
+    res.json(subscription);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+export default router;
