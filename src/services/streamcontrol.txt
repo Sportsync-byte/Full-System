@@ -1,0 +1,155 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Switch,
+  FormControlLabel,
+  Alert,
+} from '@mui/material';
+import StreamingService, { StreamConfig } from '../../services/StreamingService';
+import { Fixture } from '../../types/types';
+
+interface StreamControlProps {
+  fixture: Fixture;
+}
+
+const StreamControl: React.FC<StreamControlProps> = ({ fixture }) => {
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamKey, setStreamKey] = useState('');
+  const [rtmpUrl, setRtmpUrl] = useState('');
+  const [overlayPosition, setOverlayPosition] = useState<'top' | 'bottom'>('top');
+  const [showScoreboard, setShowScoreboard] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const streamingService = StreamingService.getInstance();
+
+  useEffect(() => {
+    const config = streamingService.getStreamConfig(fixture.id);
+    if (config) {
+      setIsStreaming(true);
+      setStreamKey(config.streamKey);
+      setRtmpUrl(config.rtmpUrl);
+      setOverlayPosition(config.overlayPosition);
+      setShowScoreboard(config.showScoreboard);
+    }
+  }, [fixture.id]);
+
+  const handleStartStream = async () => {
+    try {
+      const config: StreamConfig = {
+        gameId: fixture.id,
+        streamKey,
+        rtmpUrl,
+        overlayPosition,
+        showScoreboard,
+      };
+
+      const success = await streamingService.startStream(config);
+      if (success) {
+        setIsStreaming(true);
+        setError(null);
+      } else {
+        setError('Failed to start stream');
+      }
+    } catch (error) {
+      setError('Error starting stream');
+    }
+  };
+
+  const handleStopStream = async () => {
+    try {
+      const success = await streamingService.stopStream(fixture.id);
+      if (success) {
+        setIsStreaming(false);
+        setError(null);
+      } else {
+        setError('Failed to stop stream');
+      }
+    } catch (error) {
+      setError('Error stopping stream');
+    }
+  };
+
+  return (
+    <Paper sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        Stream Control
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <TextField
+          label="Stream Key"
+          value={streamKey}
+          onChange={(e) => setStreamKey(e.target.value)}
+          disabled={isStreaming}
+          required
+        />
+
+        <TextField
+          label="RTMP URL"
+          value={rtmpUrl}
+          onChange={(e) => setRtmpUrl(e.target.value)}
+          disabled={isStreaming}
+          required
+        />
+
+        <FormControl>
+          <InputLabel>Overlay Position</InputLabel>
+          <Select
+            value={overlayPosition}
+            onChange={(e) => setOverlayPosition(e.target.value as 'top' | 'bottom')}
+            disabled={isStreaming}
+          >
+            <MenuItem value="top">Top</MenuItem>
+            <MenuItem value="bottom">Bottom</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showScoreboard}
+              onChange={(e) => setShowScoreboard(e.target.checked)}
+              disabled={isStreaming}
+            />
+          }
+          label="Show Scoreboard"
+        />
+
+        <Button
+          variant="contained"
+          color={isStreaming ? 'error' : 'primary'}
+          onClick={isStreaming ? handleStopStream : handleStartStream}
+        >
+          {isStreaming ? 'Stop Stream' : 'Start Stream'}
+        </Button>
+      </Box>
+
+      {isStreaming && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Stream URL for viewers:
+          </Typography>
+          <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
+            {`${window.location.origin}/watch/${fixture.id}`}
+          </Typography>
+        </Box>
+      )}
+    </Paper>
+  );
+};
+
+export default StreamControl;

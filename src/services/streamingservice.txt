@@ -1,0 +1,95 @@
+import { Socket } from 'socket.io-client';
+
+export interface StreamConfig {
+  gameId: string;
+  streamKey: string;
+  rtmpUrl: string;
+  overlayPosition: 'top' | 'bottom';
+  showScoreboard: boolean;
+}
+
+class StreamingService {
+  private static instance: StreamingService;
+  private socket: Socket | null = null;
+  private activeStreams: Map<string, StreamConfig> = new Map();
+
+  private constructor() {}
+
+  public static getInstance(): StreamingService {
+    if (!StreamingService.instance) {
+      StreamingService.instance = new StreamingService();
+    }
+    return StreamingService.instance;
+  }
+
+  public setSocket(socket: Socket) {
+    this.socket = socket;
+    this.setupListeners();
+  }
+
+  private setupListeners() {
+    if (!this.socket) return;
+
+    this.socket.on('streamUpdate', (data: { gameId: string; config: StreamConfig }) => {
+      this.activeStreams.set(data.gameId, data.config);
+    });
+
+    this.socket.on('streamEnd', (gameId: string) => {
+      this.activeStreams.delete(gameId);
+    });
+  }
+
+  public async startStream(config: StreamConfig): Promise<boolean> {
+    try {
+      if (!this.socket) throw new Error('Socket not initialized');
+
+      const response = await fetch('http://localhost:3001/api/streams/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
+      });
+
+      if (response.ok) {
+        this.activeStreams.set(config.gameId, config);
+        this.socket.emit('streamStart', config);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error starting stream:', error);
+      return false;
+    }
+  }
+
+  public async stopStream(gameId: string): Promise<boolean> {
+    try {
+      if (!this.socket) throw new Error('Socket not initialized');
+
+      const response = await fetch(`http://localhost:3001/api/streams/${gameId}/stop`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        this.activeStreams.delete(gameId);
+        this.socket.emit('streamEnd', gameId);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error stopping stream:', error);
+      return false;
+    }
+  }
+
+  public getStreamConfig(gameId: string): StreamConfig | undefined {
+    return this.activeStreams.get(gameId);
+  }
+
+  public isStreaming(gameId: string): boolean {
+    return this.activeStreams.has(gameId);
+  }
+}
+
+export default StreamingService;

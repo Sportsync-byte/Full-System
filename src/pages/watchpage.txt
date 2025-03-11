@@ -1,0 +1,78 @@
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  Box,
+  Container,
+  Typography,
+  Paper,
+  Grid,
+} from '@mui/material';
+import StreamViewer from '../components/streaming/StreamViewer';
+import { Fixture } from '../types/types';
+
+const WatchPage: React.FC = () => {
+  const { fixtureId } = useParams<{ fixtureId: string }>();
+  const [fixture, setFixture] = useState<Fixture | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchFixture = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/api/fixtures/${fixtureId}`);
+        if (!response.ok) {
+          throw new Error('Fixture not found');
+        }
+        const data = await response.json();
+        setFixture(data);
+      } catch (error) {
+        setError('Failed to load fixture');
+      }
+    };
+
+    fetchFixture();
+  }, [fixtureId]);
+
+  if (error) {
+    return (
+      <Container>
+        <Typography color="error" sx={{ mt: 4 }}>
+          {error}
+        </Typography>
+      </Container>
+    );
+  }
+
+  if (!fixture) {
+    return (
+      <Container>
+        <Typography sx={{ mt: 4 }}>Loading...</Typography>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg">
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        <Grid item xs={12}>
+          <StreamViewer fixture={fixture} />
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              Match Details
+            </Typography>
+            <Typography>
+              {fixture.homeTeam.name} vs {fixture.awayTeam.name}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {fixture.venue.name}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Container>
+  );
+};
+
+export default WatchPage;

@@ -1,0 +1,88 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+import { Fixture } from '../../types/types';
+import StreamingService from '../../services/StreamingService';
+
+interface StreamViewerProps {
+  fixture: Fixture;
+}
+
+const StreamViewer: React.FC<StreamViewerProps> = ({ fixture }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const streamingService = StreamingService.getInstance();
+
+  useEffect(() => {
+    const initializeStream = async () => {
+      try {
+        const config = streamingService.getStreamConfig(fixture.id);
+        if (!config) {
+          setError('Stream not available');
+          setIsLoading(false);
+          return;
+        }
+
+        if (videoRef.current) {
+          // Initialize video player (you might want to use a specific player library here)
+          videoRef.current.src = `http://localhost:3001/streams/${fixture.id}/playlist.m3u8`;
+          await videoRef.current.play();
+        }
+
+        setIsLoading(false);
+      } catch (error) {
+        setError('Failed to load stream');
+        setIsLoading(false);
+      }
+    };
+
+    initializeStream();
+  }, [fixture.id]);
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ m: 2 }}>
+        {error}
+      </Alert>
+    );
+  }
+
+  return (
+    <Paper sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        {fixture.homeTeam.name} vs {fixture.awayTeam.name}
+      </Typography>
+
+      <Box sx={{ position: 'relative', width: '100%', paddingTop: '56.25%' }}>
+        <video
+          ref={videoRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+          }}
+          controls
+          playsInline
+        />
+      </Box>
+    </Paper>
+  );
+};
+
+export default StreamViewer;
