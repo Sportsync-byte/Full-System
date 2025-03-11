@@ -1,0 +1,70 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  Tabs,
+  Tab,
+  Divider,
+} from '@mui/material';
+import ProfileSettings from './ProfileSettings';
+import ThemeSettings from './ThemeSettings';
+import SirenSettings from './SirenSettings';
+import SubscriptionSettings from './SubscriptionSettings';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
+  <div role="tabpanel" hidden={value !== index}>
+    {value === index && (
+      <Box sx={{ p: 3 }}>
+        {children}
+      </Box>
+    )}
+  </div>
+);
+
+const Settings: React.FC = () => {
+  const [activeTab, setActiveTab] = useState(0);
+  const { user } = useAuth();
+
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom>
+        Settings
+      </Typography>
+      <Paper>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label="Profile" />
+          <Tab label="Theme" />
+          <Tab label="Sirens" />
+          <Tab label="Subscription" />
+        </Tabs>
+
+        <TabPanel value={activeTab} index={0}>
+          <ProfileSettings />
+        </TabPanel>
+        <TabPanel value={activeTab} index={1}>
+          <ThemeSettings />
+        </TabPanel>
+        <TabPanel value={activeTab} index={2}>
+          <SirenSettings />
+        </TabPanel>
+        <TabPanel value={activeTab} index={3}>
+          <SubscriptionSettings />
+        </TabPanel>
+      </Paper>
+    </Box>
+  );
+};
+
+export default Settings;

@@ -1,0 +1,61 @@
+import React from 'react';
+import {
+  Box,
+  FormControl,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  Typography,
+  Paper,
+  Grid,
+} from '@mui/material';
+import { useTheme } from '../../contexts/ThemeContext';
+
+const ThemeSettings: React.FC = () => {
+  const { theme, setTheme } = useTheme();
+
+  const colorSchemes = [
+    { name: 'Default', value: 'default' },
+    { name: 'Dark', value: 'dark' },
+    { name: 'Light', value: 'light' },
+  ];
+
+  const handleThemeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setTheme(event.target.value);
+  };
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Theme Settings
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Color Scheme
+            </Typography>
+            <FormControl component="fieldset">
+              <RadioGroup
+                value={theme}
+                onChange={handleThemeChange}
+              >
+                {colorSchemes.map((scheme) => (
+                  <FormControlLabel
+                    key={scheme.value}
+                    value={scheme.value}
+                    control={<Radio />}
+                    label={scheme.name}
+                  />
+                ))}
+              </RadioGroup>
+            </FormControl>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+export default ThemeSettings;

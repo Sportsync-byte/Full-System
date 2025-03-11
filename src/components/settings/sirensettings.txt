@@ -1,0 +1,151 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  Paper,
+  Slider,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from '@mui/material';
+import { SportType } from '../../types/types';
+import SirenService from '../../services/SirenService';
+
+interface SirenConfig {
+  sportType: SportType;
+  soundFile: string;
+  volume: number;
+}
+
+const SirenSettings: React.FC = () => {
+  const [configs, setConfigs] = useState<Map<SportType, SirenConfig>>(new Map());
+  const [selectedSport, setSelectedSport] = useState<SportType>(SportType.CRICKET_T20);
+  const sirenService = SirenService.getInstance();
+
+  useEffect(() => {
+    // Load saved configurations
+    const loadConfigs = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/settings/sirens');
+        const data = await response.json();
+        setConfigs(new Map(Object.entries(data)));
+      } catch (error) {
+        console.error('Error loading siren configurations:', error);
+      }
+    };
+
+    loadConfigs();
+  }, []);
+
+  const handleVolumeChange = (sportType: SportType, volume: number) => {
+    const config = configs.get(sportType);
+    if (config) {
+      const newConfig = { ...config, volume };
+      setConfigs(new Map(configs.set(sportType, newConfig)));
+      sirenService.updateSirenConfig(sportType, newConfig);
+    }
+  };
+
+  const handleTest = (sportType: SportType) => {
+    sirenService.playSiren(sportType);
+  };
+
+  const handleSoundFileChange = async (sportType: SportType, file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('siren', file);
+      formData.append('sportType', sportType);
+
+      const response = await fetch('http://localhost:3001/api/settings/sirens/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const config = configs.get(sportType);
+        if (config) {
+          const newConfig = { ...config, soundFile: data.soundFile };
+          setConfigs(new Map(configs.set(sportType, newConfig)));
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading siren sound:', error);
+    }
+  };
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Siren Settings
+      </Typography>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <FormControl fullWidth>
+            <InputLabel>Sport</InputLabel>
+            <Select
+              value={selectedSport}
+              onChange={(e) => setSelectedSport(e.target.value as SportType)}
+            >
+              {Object.values(SportType).map((sport) => (
+                <MenuItem key={sport} value={sport}>
+                  {sport.replace(/_/g, ' ')}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Volume
+            </Typography>
+            <Slider
+              value={configs.get(selectedSport)?.volume || 1}
+              onChange={(_, value) => handleVolumeChange(selectedSport, value as number)}
+              min={0}
+              max={1}
+              step={0.1}
+              marks
+              valueLabelDisplay="auto"
+            />
+
+            <Box sx={{ mt: 2 }}>
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleSoundFileChange(selectedSport, file);
+                  }
+                }}
+                style={{ display: 'none' }}
+                id="siren-file-input"
+              />
+              <label htmlFor="siren-file-input">
+                <Button variant="outlined" component="span">
+                  Upload Sound
+                </Button>
+              </label>
+              <Button
+                variant="contained"
+                onClick={() => handleTest(selectedSport)}
+                sx={{ ml: 2 }}
+              >
+                Test Siren
+              </Button>
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+export default SirenSettings;
