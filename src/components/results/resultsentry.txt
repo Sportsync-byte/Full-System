@@ -1,0 +1,154 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button,
+  Dialog,
+} from '@mui/material';
+import { Fixture, SportType } from '../../types/types';
+import CricketResultForm from './sports/CricketResultForm';
+import RugbyResultForm from './sports/RugbyResultForm';
+import NetballResultForm from './sports/NetballResultForm';
+import BasketballResultForm from './sports/BasketballResultForm';
+import FootballResultForm from './sports/FootballResultForm';
+
+const ResultsEntry: React.FC = () => {
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [selectedFixture, setSelectedFixture] = useState<Fixture | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  useEffect(() => {
+    fetchFixtures();
+  }, []);
+
+  const fetchFixtures = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/fixtures?status=COMPLETED');
+      const data = await response.json();
+      setFixtures(data);
+    } catch (error) {
+      console.error('Error fetching fixtures:', error);
+    }
+  };
+
+  const handleSubmitResult = async (resultData: any) => {
+    try {
+      await fetch(`http://localhost:3001/api/fixtures/${selectedFixture?.id}/result`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(resultData),
+      });
+
+      setIsFormOpen(false);
+      fetchFixtures();
+    } catch (error) {
+      console.error('Error submitting result:', error);
+    }
+  };
+
+  const renderResultForm = () => {
+    if (!selectedFixture) return null;
+
+    switch (selectedFixture.sportType) {
+      case SportType.CRICKET_T20:
+      case SportType.CRICKET_ODI:
+      case SportType.CRICKET_MULTI_DAY:
+        return (
+          <CricketResultForm
+            fixture={selectedFixture}
+            onSubmit={handleSubmitResult}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        );
+      case SportType.RUGBY:
+      case SportType.RUGBY_LEAGUE:
+      case SportType.TOUCH_RUGBY:
+        return (
+          <RugbyResultForm
+            fixture={selectedFixture}
+            onSubmit={handleSubmitResult}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        );
+      case SportType.NETBALL:
+      case SportType.INDOOR_NETBALL:
+        return (
+          <NetballResultForm
+            fixture={selectedFixture}
+            onSubmit={handleSubmitResult}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        );
+      case SportType.BASKETBALL:
+        return (
+          <BasketballResultForm
+            fixture={selectedFixture}
+            onSubmit={handleSubmitResult}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        );
+      case SportType.FOOTBALL:
+      case SportType.INDOOR_FOOTBALL:
+        return (
+          <FootballResultForm
+            fixture={selectedFixture}
+            onSubmit={handleSubmitResult}
+            onCancel={() => setIsFormOpen(false)}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom>
+        Results Entry
+      </Typography>
+
+      <Paper sx={{ p: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Select Fixture</InputLabel>
+              <Select
+                value={selectedFixture?.id || ''}
+                onChange={(e) => {
+                  const fixture = fixtures.find(f => f.id === e.target.value);
+                  setSelectedFixture(fixture || null);
+                  setIsFormOpen(true);
+                }}
+              >
+                {fixtures.map((fixture) => (
+                  <MenuItem key={fixture.id} value={fixture.id}>
+                    {`${fixture.homeTeam.name} vs ${fixture.awayTeam.name} - ${fixture.sportType}`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Dialog
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        {renderResultForm()}
+      </Dialog>
+    </Box>
+  );
+};
+
+export default ResultsEntry;

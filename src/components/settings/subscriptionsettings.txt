@@ -1,0 +1,222 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  Paper,
+  Button,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+} from '@mui/material';
+import { Subscription, SportType } from '../../types/types';
+import { format } from 'date-fns';
+import { useAuth } from '../../contexts/AuthContext';
+
+const SubscriptionSettings: React.FC = () => {
+  const { user } = useAuth();
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<'SPORTS_CLUB' | 'SPORTS_STADIUM'>('SPORTS_CLUB');
+  const [selectedSports, setSelectedSports] = useState<SportType[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSubscription();
+  }, [user]);
+
+  const fetchSubscription = async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/subscriptions/${user?.organizationId}`);
+      const data = await response.json();
+      setSubscription(data);
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/subscriptions', {
+        method: subscription ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: selectedPlan,
+          allowedSports: selectedSports,
+          organizationId: user?.organizationId,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSubscription(data);
+        setIsUpgradeDialogOpen(false);
+      } else {
+        const error = await response.json();
+        setError(error.message);
+      }
+    } catch (error) {
+      setError('Failed to update subscription');
+    }
+  };
+
+  const renderSubscriptionDetails = () => {
+    if (!subscription) {
+      return (
+        <Alert severity="info">
+          No active subscription found. Please upgrade to access premium features.
+        </Alert>
+      );
+    }
+
+    return (
+      <TableContainer component={Paper}>
+        <Table>
+          <TableBody>
+            <TableRow>
+              <TableCell>Plan Type</TableCell>
+              <TableCell>{subscription.type}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Status</TableCell>
+              <TableCell>
+                <Chip
+                  label={subscription.isActive ? 'Active' : 'Inactive'}
+                  color={subscription.isActive ? 'success' : 'error'}
+                />
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Expiry Date</TableCell>
+              <TableCell>
+                {format(new Date(subscription.expiryDate), 'dd/MM/yyyy')}
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Allowed Sports</TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {subscription.allowedSports.map((sport) => (
+                    <Chip key={sport} label={sport.replace(/_/g, ' ')} />
+                  ))}
+                </Box>
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Maximum Concurrent Games</TableCell>
+              <TableCell>{subscription.maxGames}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h6">Subscription Details</Typography>
+        <Button
+          variant="contained"
+          onClick={() => setIsUpgradeDialogOpen(true)}
+        >
+          {subscription ? 'Change Plan' : 'Upgrade'}
+        </Button>
+      </Box>
+
+      {renderSubscriptionDetails()}
+
+      <Dialog
+        open={isUpgradeDialogOpen}
+        onClose={() => setIsUpgradeDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {subscription ? 'Change Subscription Plan' : 'Choose a Plan'}
+        </DialogTitle>
+        <DialogContent>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Plan Type</InputLabel>
+                <Select
+                  value={selectedPlan}
+                  onChange={(e) => setSelectedPlan(e.target.value as 'SPORTS_CLUB' | 'SPORTS_STADIUM')}
+                >
+                  <MenuItem value="SPORTS_CLUB">
+                    Sports Club (Single sport, limited features)
+                  </MenuItem>
+                  <MenuItem value="SPORTS_STADIUM">
+                    Sports Stadium (Multiple sports, all features)
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Select Sports</InputLabel>
+                <Select
+                  multiple
+                  value={selectedSports}
+                  onChange={(e) => setSelectedSports(e.target.value as SportType[])}
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((sport) => (
+                        <Chip key={sport} label={sport.replace(/_/g, ' ')} />
+                      ))}
+                    </Box>
+                  )}
+                >
+                  {Object.values(SportType).map((sport) => (
+                    <MenuItem
+                      key={sport}
+                      value={sport}
+                      disabled={selectedPlan === 'SPORTS_CLUB' && selectedSports.length >= 1 && !selectedSports.includes(sport)}
+                    >
+                      {sport.replace(/_/g, ' ')}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsUpgradeDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleUpgrade}
+            disabled={selectedSports.length === 0}
+          >
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default SubscriptionSettings;
