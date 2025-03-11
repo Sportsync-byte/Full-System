@@ -1,0 +1,142 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Grid,
+  TextField,
+  Typography,
+  Paper,
+} from '@mui/material';
+import { Fixture, RugbyScore } from '../../../types/types';
+
+interface RugbyResultFormProps {
+  fixture: Fixture;
+  onSubmit: (data: RugbyScore) => void;
+  onCancel: () => void;
+}
+
+interface TeamScore {
+  tries: number;
+  conversions: number;
+  penalties: number;
+  dropGoals: number;
+}
+
+const RugbyResultForm: React.FC<RugbyResultFormProps> = ({
+  fixture,
+  onSubmit,
+  onCancel,
+}) => {
+  const [homeScore, setHomeScore] = useState<TeamScore>({
+    tries: 0,
+    conversions: 0,
+    penalties: 0,
+    dropGoals: 0,
+  });
+
+  const [awayScore, setAwayScore] = useState<TeamScore>({
+    tries: 0,
+    conversions: 0,
+    penalties: 0,
+    dropGoals: 0,
+  });
+
+  const calculateTotalScore = (score: TeamScore) => {
+    return (score.tries * 5) + (score.conversions * 2) + (score.penalties * 3) + (score.dropGoals * 3);
+  };
+
+  const handleSubmit = () => {
+    const result: RugbyScore = {
+      homeScore: calculateTotalScore(homeScore),
+      awayScore: calculateTotalScore(awayScore),
+      details: {
+        home: homeScore,
+        away: awayScore,
+      },
+    };
+
+    onSubmit(result);
+  };
+
+  const ScoreInput = ({ team, score, setScore }: {
+    team: string;
+    score: TeamScore;
+    setScore: (score: TeamScore) => void;
+  }) => (
+    <Paper sx={{ p: 2, mb: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        {team}
+      </Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={6} sm={3}>
+          <TextField
+            label="Tries"
+            type="number"
+            value={score.tries}
+            onChange={(e) => setScore({ ...score, tries: parseInt(e.target.value) || 0 })}
+            fullWidth
+          />
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <TextField
+            label="Conversions"
+            type="number"
+            value={score.conversions}
+            onChange={(e) => setScore({ ...score, conversions: parseInt(e.target.value) || 0 })}
+            fullWidth
+          />
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <TextField
+            label="Penalties"
+            type="number"
+            value={score.penalties}
+            onChange={(e) => setScore({ ...score, penalties: parseInt(e.target.value) || 0 })}
+            fullWidth
+          />
+        </Grid>
+        <Grid item xs={6} sm={3}>
+          <TextField
+            label="Drop Goals"
+            type="number"
+            value={score.dropGoals}
+            onChange={(e) => setScore({ ...score, dropGoals: parseInt(e.target.value) || 0 })}
+            fullWidth
+          />
+        </Grid>
+      </Grid>
+      <Typography variant="subtitle1" sx={{ mt: 2 }}>
+        Total Score: {calculateTotalScore(score)}
+      </Typography>
+    </Paper>
+  );
+
+  return (
+    <Box>
+      <DialogTitle>Enter Rugby Match Result</DialogTitle>
+      <DialogContent>
+        <ScoreInput
+          team={fixture.homeTeam.name}
+          score={homeScore}
+          setScore={setHomeScore}
+        />
+        <ScoreInput
+          team={fixture.awayTeam.name}
+          score={awayScore}
+          setScore={setAwayScore}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained">
+          Submit Result
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+export default RugbyResultForm;

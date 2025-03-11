@@ -1,0 +1,203 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Grid,
+  TextField,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+} from '@mui/material';
+import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
+import { Fixture, CricketScore } from '../../../types/types';
+
+interface CricketResultFormProps {
+  fixture: Fixture;
+  onSubmit: (data: CricketScore) => void;
+  onCancel: () => void;
+}
+
+interface InningsData {
+  battingTeam: string;
+  runs: number;
+  wickets: number;
+  overs: number;
+  declarations: boolean;
+}
+
+const CricketResultForm: React.FC<CricketResultFormProps> = ({
+  fixture,
+  onSubmit,
+  onCancel,
+}) => {
+  const [innings, setInnings] = useState<InningsData[]>([
+    {
+      battingTeam: fixture.homeTeam.id,
+      runs: 0,
+      wickets: 0,
+      overs: 0,
+      declarations: false,
+    },
+  ]);
+
+  const handleAddInnings = () => {
+    setInnings([
+      ...innings,
+      {
+        battingTeam: innings[innings.length - 1].battingTeam === fixture.homeTeam.id
+          ? fixture.awayTeam.id
+          : fixture.homeTeam.id,
+        runs: 0,
+        wickets: 0,
+        overs: 0,
+        declarations: false,
+      },
+    ]);
+  };
+
+  const handleRemoveInnings = (index: number) => {
+    setInnings(innings.filter((_, i) => i !== index));
+  };
+
+  const handleInningsChange = (index: number, field: keyof InningsData, value: any) => {
+    const newInnings = [...innings];
+    newInnings[index] = {
+      ...newInnings[index],
+      [field]: value,
+    };
+    setInnings(newInnings);
+  };
+
+  const handleSubmit = () => {
+    const homeInnings = innings.filter(i => i.battingTeam === fixture.homeTeam.id);
+    const awayInnings = innings.filter(i => i.battingTeam === fixture.awayTeam.id);
+
+    const homeScore = homeInnings.reduce((total, inn) => total + inn.runs, 0);
+    const awayScore = awayInnings.reduce((total, inn) => total + inn.runs, 0);
+
+    const result: CricketScore = {
+      homeScore,
+      awayScore,
+      details: {
+        innings: innings.map(inn => ({
+          battingTeam: inn.battingTeam,
+          runs: inn.runs,
+          wickets: inn.wickets,
+          overs: inn.overs,
+          declarations: inn.declarations,
+        })),
+      },
+    };
+
+    onSubmit(result);
+  };
+
+  return (
+    <Box>
+      <DialogTitle>Enter Cricket Match Result</DialogTitle>
+      <DialogContent>
+        <TableContainer component={Paper} sx={{ mt: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Batting Team</TableCell>
+                <TableCell align="right">Runs</TableCell>
+                <TableCell align="right">Wickets</TableCell>
+                <TableCell align="right">Overs</TableCell>
+                <TableCell align="right">Declared</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {innings.map((inning, index) => (
+                <TableRow key={index}>
+                  <TableCell>
+                    {inning.battingTeam === fixture.homeTeam.id
+                      ? fixture.homeTeam.name
+                      : fixture.awayTeam.name}
+                  </TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      value={inning.runs}
+                      onChange={(e) => handleInningsChange(index, 'runs', parseInt(e.target.value))}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      value={inning.wickets}
+                      onChange={(e) => handleInningsChange(index, 'wickets', parseInt(e.target.value))}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <TextField
+                      type="number"
+                      value={inning.overs}
+                      onChange={(e) => handleInningsChange(index, 'overs', parseFloat(e.target.value))}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Button
+                      size="small"
+                      onClick={() => handleInningsChange(index, 'declarations', !inning.declarations)}
+                    >
+                      {inning.declarations ? 'Yes' : 'No'}
+                    </Button>
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRemoveInnings(index)}
+                      disabled={index === 0}
+                    >
+                      <RemoveIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Button
+          startIcon={<AddIcon />}
+          onClick={handleAddInnings}
+          sx={{ mt: 2 }}
+        >
+          Add Innings
+        </Button>
+
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 2 }}>
+          Total Score:
+          {` ${fixture.homeTeam.name}: ${innings
+            .filter(i => i.battingTeam === fixture.homeTeam.id)
+            .reduce((total, inn) => total + inn.runs, 0)} runs`}
+          {` | ${fixture.awayTeam.name}: ${innings
+            .filter(i => i.battingTeam === fixture.awayTeam.id)
+            .reduce((total, inn) => total + inn.runs, 0)} runs`}
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained">
+          Submit Result
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+export default CricketResultForm;
