@@ -1,0 +1,57 @@
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { Box, Paper, Typography } from '@mui/material';
+import { SportType } from '../../types/types';
+import CricketScoreboard from './sports/CricketScoreboard';
+import RugbyScoreboard from './sports/RugbyScoreboard';
+import NetballScoreboard from './sports/NetballScoreboard';
+import FootballScoreboard from './sports/FootballScoreboard';
+import BasketballScoreboard from './sports/BasketballScoreboard';
+import { useSocket } from '../../contexts/SocketContext';
+
+const Scoreboard: React.FC = () => {
+  const { sportType } = useParams<{ sportType: SportType }>();
+  const socket = useSocket();
+
+  const renderScoreboard = () => {
+    switch (sportType) {
+      case SportType.CRICKET_T20:
+      case SportType.CRICKET_ODI:
+      case SportType.CRICKET_MULTI_DAY:
+        return <CricketScoreboard format={sportType} />;
+      
+      case SportType.RUGBY:
+      case SportType.RUGBY_LEAGUE:
+      case SportType.TOUCH_RUGBY:
+        return <RugbyScoreboard format={sportType} />;
+      
+      case SportType.NETBALL:
+      case SportType.INDOOR_NETBALL:
+        return <NetballScoreboard format={sportType} />;
+      
+      case SportType.FOOTBALL:
+      case SportType.INDOOR_FOOTBALL:
+        return <FootballScoreboard format={sportType} />;
+      
+      case SportType.BASKETBALL:
+        return <BasketballScoreboard />;
+      
+      default:
+        return (
+          <Typography variant="h6" color="error">
+            Invalid sport type
+          </Typography>
+        );
+    }
+  };
+
+  return (
+    <Box sx={{ p: 2 }}>
+      <Paper elevation={3} sx={{ p: 2 }}>
+        {renderScoreboard()}
+      </Paper>
+    </Box>
+  );
+};
+
+export default Scoreboard;

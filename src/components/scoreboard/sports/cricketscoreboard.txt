@@ -1,0 +1,235 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import { SportType } from '../../../types/types';
+import { useSocket } from '../../../contexts/SocketContext';
+
+interface CricketScoreboardProps {
+  format: SportType;
+}
+
+interface BatsmanStats {
+  name: string;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  isStriker: boolean;
+}
+
+interface BowlerStats {
+  name: string;
+  overs: number;
+  maidens: number;
+  runs: number;
+  wickets: number;
+}
+
+const CricketScoreboard: React.FC<CricketScoreboardProps> = ({ format }) => {
+  const socket = useSocket();
+  const [score, setScore] = useState(0);
+  const [wickets, setWickets] = useState(0);
+  const [overs, setOvers] = useState(0);
+  const [balls, setBalls] = useState(0);
+  const [striker, setStriker] = useState<BatsmanStats>({
+    name: '',
+    runs: 0,
+    balls: 0,
+    fours: 0,
+    sixes: 0,
+    isStriker: true,
+  });
+  const [nonStriker, setNonStriker] = useState<BatsmanStats>({
+    name: '',
+    runs: 0,
+    balls: 0,
+    fours: 0,
+    sixes: 0,
+    isStriker: false,
+  });
+  const [currentBowler, setCurrentBowler] = useState<BowlerStats>({
+    name: '',
+    overs: 0,
+    maidens: 0,
+    runs: 0,
+    wickets: 0,
+  });
+  const [isNewBatsmanDialogOpen, setIsNewBatsmanDialogOpen] = useState(false);
+  const [newBatsmanName, setNewBatsmanName] = useState('');
+
+  const handleRuns = (runs: number) => {
+    setScore((prev) => prev + runs);
+    setStriker((prev) => ({
+      ...prev,
+      runs: prev.runs + runs,
+      balls: prev.balls + 1,
+      fours: runs === 4 ? prev.fours + 1 : prev.fours,
+      sixes: runs === 6 ? prev.sixes + 1 : prev.sixes,
+    }));
+    setBalls((prev) => prev + 1);
+    
+    if (runs % 2 === 1) {
+      // Rotate strike
+      const temp = striker;
+      setStriker({ ...nonStriker, isStriker: true });
+      setNonStriker({ ...temp, isStriker: false });
+    }
+
+    // Emit score update
+    socket.emit('scoreUpdate', {
+      type: 'RUNS',
+      runs,
+      totalScore: score + runs,
+      wickets,
+      overs: `${overs}.${balls + 1}`,
+    });
+  };
+
+  const handleWicket = () => {
+    setWickets((prev) => prev + 1);
+    setIsNewBatsmanDialogOpen(true);
+    
+    // Update bowler stats
+    setCurrentBowler((prev) => ({
+      ...prev,
+      wickets: prev.wickets + 1,
+    }));
+  };
+
+  const handleNewBatsman = () => {
+    setStriker({
+      name: newBatsmanName,
+      runs: 0,
+      balls: 0,
+      fours: 0,
+      sixes: 0,
+      isStriker: true,
+    });
+    setNewBatsmanName('');
+    setIsNewBatsmanDialogOpen(false);
+  };
+
+  useEffect(() => {
+    if (balls === 6) {
+      setBalls(0);
+      setOvers((prev) => prev + 1);
+      // Rotate strike
+      const temp = striker;
+      setStriker({ ...nonStriker, isStriker: true });
+      setNonStriker({ ...temp, isStriker: false });
+    }
+  }, [balls]);
+
+  return (
+    <Box>
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <Typography variant="h4" align="center">
+            {score}/{wickets}
+          </Typography>
+          <Typography variant="h6" align="center">
+            Overs: {overs}.{balls}
+          </Typography>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6">Batsmen</Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography>
+                {striker.name}* - {striker.runs} ({striker.balls})
+              </Typography>
+              <Typography>
+                {nonStriker.name} - {nonStriker.runs} ({nonStriker.balls})
+              </Typography>
+            </Box>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h6">Bowler</Typography>
+            <Typography>
+              {currentBowler.name} - {currentBowler.wickets}/{currentBowler.runs}
+              ({currentBowler.overs}.{balls})
+            </Typography>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Grid container spacing={1}>
+              <Grid item xs={3}>
+                <Button fullWidth variant="contained" onClick={() => handleRuns(0)}>
+                  Dot
+                </Button>
+              </Grid>
+              <Grid item xs={3}>
+                <Button fullWidth variant="contained" onClick={() => handleRuns(1)}>
+                  1
+                </Button>
+              </Grid>
+              <Grid item xs={3}>
+                <Button fullWidth variant="contained" onClick={() => handleRuns(2)}>
+                  2
+                </Button>
+              </Grid>
+              <Grid item xs={3}>
+                <Button fullWidth variant="contained" onClick={() => handleRuns(3)}>
+                  3
+                </Button>
+              </Grid>
+              <Grid item xs={3}>
+                <Button fullWidth variant="contained" onClick={() => handleRuns(4)}>
+                  4
+                </Button>
+              </Grid>
+              <Grid item xs={3}>
+                <Button fullWidth variant="contained" onClick={() => handleRuns(6)}>
+                  6
+                </Button>
+              </Grid>
+              <Grid item xs={3}>
+                <Button fullWidth variant="contained" color="error" onClick={handleWicket}>
+                  Wicket
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Dialog open={isNewBatsmanDialogOpen} onClose={() => setIsNewBatsmanDialogOpen(false)}>
+        <DialogTitle>New Batsman</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Batsman Name"
+            fullWidth
+            value={newBatsmanName}
+            onChange={(e) => setNewBatsmanName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsNewBatsmanDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleNewBatsman} variant="contained">
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default CricketScoreboard;
