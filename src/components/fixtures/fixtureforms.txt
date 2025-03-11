@@ -1,0 +1,176 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Button,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
+} from '@mui/material';
+import { DateTimePicker } from '@mui/x-date-pickers';
+import { Fixture, SportType, Team, Venue } from '../../types/types';
+
+interface FixtureFormProps {
+  fixture?: Fixture | null;
+  onSubmit: (data: Partial<Fixture>) => void;
+  onCancel: () => void;
+}
+
+const FixtureForm: React.FC<FixtureFormProps> = ({
+  fixture,
+  onSubmit,
+  onCancel,
+}) => {
+  const [formData, setFormData] = useState<Partial<Fixture>>({
+    sportType: SportType.CRICKET_T20,
+    startTime: new Date(),
+    status: 'SCHEDULED',
+  });
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
+
+  useEffect(() => {
+    if (fixture) {
+      setFormData(fixture);
+    }
+    fetchTeams();
+    fetchVenues();
+  }, [fixture]);
+
+  const fetchTeams = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/teams');
+      const data = await response.json();
+      setTeams(data);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    }
+  };
+
+  const fetchVenues = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/venues');
+      const data = await response.json();
+      setVenues(data);
+    } catch (error) {
+      console.error('Error fetching venues:', error);
+    }
+  };
+
+  const handleChange = (field: keyof Fixture, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <Box component="form" onSubmit={handleSubmit}>
+      <DialogTitle>
+        {fixture ? 'Edit Fixture' : 'Create New Fixture'}
+      </DialogTitle>
+      <DialogContent>
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Sport</InputLabel>
+              <Select
+                value={formData.sportType}
+                onChange={(e) => handleChange('sportType', e.target.value)}
+              >
+                {Object.values(SportType).map((sport) => (
+                  <MenuItem key={sport} value={sport}>
+                    {sport.replace(/_/g, ' ')}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Home Team</InputLabel>
+              <Select
+                value={formData.homeTeam?.id}
+                onChange={(e) => {
+                  const team = teams.find(t => t.id === e.target.value);
+                  handleChange('homeTeam', team);
+                }}
+              >
+                {teams.map((team) => (
+                  <MenuItem key={team.id} value={team.id}>
+                    {team.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Away Team</InputLabel>
+              <Select
+                value={formData.awayTeam?.id}
+                onChange={(e) => {
+                  const team = teams.find(t => t.id === e.target.value);
+                  handleChange('awayTeam', team);
+                }}
+              >
+                {teams.map((team) => (
+                  <MenuItem key={team.id} value={team.id}>
+                    {team.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Venue</InputLabel>
+              <Select
+                value={formData.venue?.id}
+                onChange={(e) => {
+                  const venue = venues.find(v => v.id === e.target.value);
+                  handleChange('venue', venue);
+                }}
+              >
+                {venues.map((venue) => (
+                  <MenuItem key={venue.id} value={venue.id}>
+                    {venue.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12}>
+            <DateTimePicker
+              label="Start Time"
+              value={formData.startTime}
+              onChange={(date) => handleChange('startTime', date)}
+            />
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button type="submit" variant="contained">
+          {fixture ? 'Update' : 'Create'}
+        </Button>
+      </DialogActions>
+    </Box>
+  );
+};
+
+export default FixtureForm;

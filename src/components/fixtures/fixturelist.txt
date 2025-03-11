@@ -1,0 +1,156 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Dialog,
+} from '@mui/material';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+} from '@mui/icons-material';
+import { Fixture, SportType } from '../../types/types';
+import FixtureForm from './FixtureForm';
+import { format } from 'date-fns';
+
+const FixtureList: React.FC = () => {
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [selectedFixture, setSelectedFixture] = useState<Fixture | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  useEffect(() => {
+    fetchFixtures();
+  }, []);
+
+  const fetchFixtures = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/fixtures');
+      const data = await response.json();
+      setFixtures(data);
+    } catch (error) {
+      console.error('Error fetching fixtures:', error);
+    }
+  };
+
+  const handleAddFixture = () => {
+    setSelectedFixture(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEditFixture = (fixture: Fixture) => {
+    setSelectedFixture(fixture);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteFixture = async (fixtureId: string) => {
+    if (window.confirm('Are you sure you want to delete this fixture?')) {
+      try {
+        await fetch(`http://localhost:3001/api/fixtures/${fixtureId}`, {
+          method: 'DELETE',
+        });
+        fetchFixtures();
+      } catch (error) {
+        console.error('Error deleting fixture:', error);
+      }
+    }
+  };
+
+  const handleFormSubmit = async (fixtureData: Partial<Fixture>) => {
+    try {
+      const method = selectedFixture ? 'PUT' : 'POST';
+      const url = selectedFixture 
+        ? `http://localhost:3001/api/fixtures/${selectedFixture.id}`
+        : 'http://localhost:3001/api/fixtures';
+
+      await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(fixtureData),
+      });
+
+      setIsFormOpen(false);
+      fetchFixtures();
+    } catch (error) {
+      console.error('Error saving fixture:', error);
+    }
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h4">Fixtures</Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleAddFixture}
+        >
+          Add Fixture
+        </Button>
+      </Box>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Date</TableCell>
+              <TableCell>Sport</TableCell>
+              <TableCell>Home Team</TableCell>
+              <TableCell>Away Team</TableCell>
+              <TableCell>Venue</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {fixtures.map((fixture) => (
+              <TableRow key={fixture.id}>
+                <TableCell>
+                  {format(new Date(fixture.startTime), 'dd/MM/yyyy HH:mm')}
+                </TableCell>
+                <TableCell>{fixture.sportType}</TableCell>
+                <TableCell>{fixture.homeTeam.name}</TableCell>
+                <TableCell>{fixture.awayTeam.name}</TableCell>
+                <TableCell>{fixture.venue.name}</TableCell>
+                <TableCell>{fixture.status}</TableCell>
+                <TableCell>
+                  <IconButton onClick={() => handleEditFixture(fixture)}>
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleDeleteFixture(fixture.id)}>
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <FixtureForm
+          fixture={selectedFixture}
+          onSubmit={handleFormSubmit}
+          onCancel={() => setIsFormOpen(false)}
+        />
+      </Dialog>
+    </Box>
+  );
+};
+
+export default FixtureList;

@@ -1,0 +1,79 @@
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  ORGANIZATION_ADMIN = 'ORGANIZATION_ADMIN',
+  SCORER = 'SCORER',
+  USER = 'USER'
+}
+
+export enum SportType {
+  CRICKET_T20 = 'CRICKET_T20',
+  CRICKET_ODI = 'CRICKET_ODI',
+  CRICKET_MULTI_DAY = 'CRICKET_MULTI_DAY',
+  TOUCH_RUGBY = 'TOUCH_RUGBY',
+  RUGBY = 'RUGBY',
+  RUGBY_LEAGUE = 'RUGBY_LEAGUE',
+  NETBALL = 'NETBALL',
+  INDOOR_NETBALL = 'INDOOR_NETBALL',
+  FOOTBALL = 'FOOTBALL',
+  INDOOR_FOOTBALL = 'INDOOR_FOOTBALL',
+  BASKETBALL = 'BASKETBALL'
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  organizationId?: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  type: 'CLUB' | 'STADIUM';
+  subscription?: Subscription;
+  venues: Venue[];
+}
+
+export interface Subscription {
+  id: string;
+  type: 'SPORTS_CLUB' | 'SPORTS_STADIUM';
+  allowedSports: SportType[];
+  maxGames: number;
+  isActive: boolean;
+  expiryDate: Date;
+}
+
+export interface Venue {
+  id: string;
+  name: string;
+  courts: Court[];
+}
+
+export interface Court {
+  id: string;
+  name: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  organizationId: string;
+  players?: Player[];
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  number?: string;
+  teamId: string;
+}
+
+export interface Fixture {
+  id: string;
+  sportType: SportType;
+  homeTeam: Team;
+  awayTeam: Team;
+  venue: Venue;
+  court: Court;
+  startTime:
