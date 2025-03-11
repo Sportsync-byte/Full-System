@@ -1,0 +1,123 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import { Add as AddIcon } from '@mui/icons-material';
+import UserTable from './components/UserTable';
+
+interface NewUser {
+  name: string;
+  email: string;
+  role: string;
+}
+
+const UserManagement: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
+  const [newUser, setNewUser] = useState<NewUser>({
+    name: '',
+    email: '',
+    role: 'user',
+  });
+
+  const handleCreateUser = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      });
+
+      if (response.ok) {
+        setOpenDialog(false);
+        setNewUser({ name: '', email: '', role: 'user' });
+        // Refresh user list
+      }
+    } catch (error) {
+      console.error('Failed to create user:', error);
+    }
+  };
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h5">User Management</Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenDialog(true)}
+        >
+          Add User
+        </Button>
+      </Box>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <TextField
+          fullWidth
+          label="Search Users"
+          variant="outlined"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ mb: 2 }}
+        />
+        <UserTable searchTerm={searchTerm} />
+      </Paper>
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Create New User</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Name"
+            fullWidth
+            value={newUser.name}
+            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Email"
+            type="email"
+            fullWidth
+            value={newUser.email}
+            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Role"
+            select
+            fullWidth
+            value={newUser.role}
+            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+            SelectProps={{
+              native: true,
+            }}
+          >
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="moderator">Moderator</option>
+          </TextField>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleCreateUser} variant="contained">
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default UserManagement;

@@ -1,0 +1,199 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  FormGroup,
+  FormControlLabel,
+  Switch,
+  Typography,
+  Button,
+  Alert,
+  Paper,
+  Divider,
+} from '@mui/material';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface NotificationPreferences {
+  email: {
+    gameReminders: boolean;
+    scoreUpdates: boolean;
+    fixtureChanges: boolean;
+    competitionUpdates: boolean;
+  };
+  push: {
+    gameStart: boolean;
+    scoreUpdates: boolean;
+    gameEnd: boolean;
+    chatMessages: boolean;
+  };
+}
+
+const NotificationSettings: React.FC = () => {
+  const { user } = useAuth();
+  const [preferences, setPreferences] = useState<NotificationPreferences>({
+    email: {
+      gameReminders: true,
+      scoreUpdates: true,
+      fixtureChanges: true,
+      competitionUpdates: true,
+    },
+    push: {
+      gameStart: true,
+      scoreUpdates: true,
+      gameEnd: true,
+      chatMessages: true,
+    },
+  });
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    fetchPreferences();
+  }, []);
+
+  const fetchPreferences = async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/users/${user?.id}/notifications`);
+      const data = await response.json();
+      setPreferences(data);
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to load notification preferences' });
+    }
+  };
+
+  const handleChange = (category: 'email' | 'push', setting: string) => 
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPreferences(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [setting]: event.target.checked,
+      },
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/users/${user?.id}/notifications`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferences),
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Notification preferences updated successfully' });
+      } else {
+        throw new Error('Failed to update preferences');
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to update notification preferences' });
+    }
+  };
+
+  return (
+    <Box>
+      {message && (
+        <Alert severity={message.type} sx={{ mb: 2 }}>
+          {message.text}
+        </Alert>
+      )}
+
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Email Notifications
+        </Typography>
+        <FormGroup>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.email.gameReminders}
+                onChange={handleChange('email', 'gameReminders')}
+              />
+            }
+            label="Game Reminders"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.email.scoreUpdates}
+                onChange={handleChange('email', 'scoreUpdates')}
+              />
+            }
+            label="Score Updates"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.email.fixtureChanges}
+                onChange={handleChange('email', 'fixtureChanges')}
+              />
+            }
+            label="Fixture Changes"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.email.competitionUpdates}
+                onChange={handleChange('email', 'competitionUpdates')}
+              />
+            }
+            label="Competition Updates"
+          />
+        </FormGroup>
+      </Paper>
+
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Push Notifications
+        </Typography>
+        <FormGroup>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.push.gameStart}
+                onChange={handleChange('push', 'gameStart')}
+              />
+            }
+            label="Game Start"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.push.scoreUpdates}
+                onChange={handleChange('push', 'scoreUpdates')}
+              />
+            }
+            label="Score Updates"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.push.gameEnd}
+                onChange={handleChange('push', 'gameEnd')}
+              />
+            }
+            label="Game End"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={preferences.push.chatMessages}
+                onChange={handleChange('push', 'chatMessages')}
+              />
+            }
+            label="Chat Messages"
+          />
+        </FormGroup>
+      </Paper>
+
+      <Button
+        variant="contained"
+        onClick={handleSubmit}
+      >
+        Save Preferences
+      </Button>
+    </Box>
+  );
+};
+
+export default NotificationSettings;

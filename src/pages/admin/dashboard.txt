@@ -1,0 +1,71 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  Container,
+  Grid,
+  Paper,
+  Typography,
+  Tabs,
+  Tab,
+} from '@mui/material';
+import Analytics from './Analytics';
+import UserManagement from './UserManagement';
+import StreamManagement from './StreamManagement';
+import SystemSettings from './SystemSettings';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
+  <div role="tabpanel" hidden={value !== index}>
+    {value === index && (
+      <Box sx={{ p: 3 }}>
+        {children}
+      </Box>
+    )}
+  </div>
+);
+
+const Dashboard: React.FC = () => {
+  const [activeTab, setActiveTab] = useState(0);
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" gutterBottom>
+        Admin Dashboard
+      </Typography>
+      
+      <Paper sx={{ width: '100%', mb: 2 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          indicatorColor="primary"
+          textColor="primary"
+        >
+          <Tab label="Analytics" />
+          <Tab label="User Management" />
+          <Tab label="Stream Management" />
+          <Tab label="System Settings" />
+        </Tabs>
+
+        <TabPanel value={activeTab} index={0}>
+          <Analytics />
+        </TabPanel>
+        <TabPanel value={activeTab} index={1}>
+          <UserManagement />
+        </TabPanel>
+        <TabPanel value={activeTab} index={2}>
+          <StreamManagement />
+        </TabPanel>
+        <TabPanel value={activeTab} index={3}>
+          <SystemSettings />
+        </TabPanel>
+      </Paper>
+    </Container>
+  );
+};
+
+export default Dashboard;

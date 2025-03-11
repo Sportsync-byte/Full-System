@@ -1,0 +1,233 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  IconButton,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  MenuItem,
+} from '@mui/material';
+import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Block as BlockIcon,
+} from '@mui/icons-material';
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  lastLogin: string;
+}
+
+interface UserTableProps {
+  searchTerm: string;
+}
+
+const UserTable: React.FC<UserTableProps> = ({ searchTerm }) => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [openDialog, setOpenDialog] = useState(false);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [page, rowsPerPage, searchTerm]);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/admin/users?page=${page}&limit=${rowsPerPage}&search=${searchTerm}`
+      );
+      const data = await response.json();
+      setUsers(data.users);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  };
+
+  const handleEditUser = async () => {
+    if (!editUser) return;
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/admin/users/${editUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editUser),
+      });
+
+      if (response.ok) {
+        setOpenDialog(false);
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Failed to update user:', error);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+    }
+  };
+
+  const handleToggleStatus = async (userId: string, currentStatus: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: currentStatus === 'active' ? 'blocked' : 'active',
+        }),
+      });
+
+      if (response.ok) {
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Failed to toggle user status:', error);
+    }
+  };
+
+  return (
+    <>
+      <TableContainer>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Last Login</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>{user.name}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={user.role}
+                    color={user.role === 'admin' ? 'primary' : 'default'}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={user.status}
+                    color={user.status === 'active' ? 'success' : 'error'}
+                  />
+                </TableCell>
+                <TableCell>{new Date(user.lastLogin).toLocaleString()}</TableCell>
+                <TableCell>
+                  <IconButton
+                    onClick={() => {
+                      setEditUser(user);
+                      setOpenDialog(true);
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleToggleStatus(user.id, user.status)}>
+                    <BlockIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleDeleteUser(user.id)}>
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <TablePagination
+        component="div"
+        count={-1}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={(_, newPage) => setPage(newPage)}
+        onRowsPerPageChange={(event) => {
+          setRowsPerPage(parseInt(event.target.value, 10));
+          setPage(0);
+        }}
+        rowsPerPageOptions={[5, 10, 25, 50]}
+      />
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Edit User</DialogTitle>
+        <DialogContent>
+          {editUser && (
+            <>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="Name"
+                fullWidth
+                value={editUser.name}
+                onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
+              />
+              <TextField
+                margin="dense"
+                label="Email"
+                type="email"
+                fullWidth
+                value={editUser.email}
+                onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+              />
+              <TextField
+                margin="dense"
+                label="Role"
+                select
+                fullWidth
+                value={editUser.role}
+                onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+              >
+                <MenuItem value="user">User</MenuItem>
+                <MenuItem value="admin">Admin</MenuItem>
+                <MenuItem value="moderator">Moderator</MenuItem>
+              </TextField>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleEditUser} variant="contained">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+};
+
+export default UserTable;

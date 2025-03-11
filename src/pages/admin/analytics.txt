@@ -1,0 +1,123 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Grid,
+  Paper,
+  Typography,
+  Box,
+  Card,
+  CardContent,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from '@mui/material';
+import AnalyticsChart from './components/AnalyticsChart';
+
+const Analytics: React.FC = () => {
+  const [timeRange, setTimeRange] = useState('7d');
+  const [analyticsData, setAnalyticsData] = useState({
+    totalUsers: 0,
+    activeStreams: 0,
+    totalViews: 0,
+    averageWatchTime: 0,
+  });
+
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, [timeRange]);
+
+  const fetchAnalyticsData = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/admin/analytics?timeRange=${timeRange}`
+      );
+      const data = await response.json();
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Failed to fetch analytics data:', error);
+    }
+  };
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between' }}>
+        <Typography variant="h5">Analytics Dashboard</Typography>
+        <FormControl sx={{ minWidth: 120 }}>
+          <InputLabel>Time Range</InputLabel>
+          <Select
+            value={timeRange}
+            label="Time Range"
+            onChange={(e) => setTimeRange(e.target.value)}
+          >
+            <MenuItem value="24h">Last 24 Hours</MenuItem>
+            <MenuItem value="7d">Last 7 Days</MenuItem>
+            <MenuItem value="30d">Last 30 Days</MenuItem>
+            <MenuItem value="90d">Last 90 Days</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Grid container spacing={3}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Total Users
+              </Typography>
+              <Typography variant="h4">
+                {analyticsData.totalUsers}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Active Streams
+              </Typography>
+              <Typography variant="h4">
+                {analyticsData.activeStreams}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Total Views
+              </Typography>
+              <Typography variant="h4">
+                {analyticsData.totalViews}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Avg. Watch Time
+              </Typography>
+              <Typography variant="h4">
+                {analyticsData.averageWatchTime}m
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <AnalyticsChart timeRange={timeRange} />
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+export default Analytics;

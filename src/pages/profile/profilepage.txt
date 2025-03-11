@@ -1,0 +1,83 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Grid,
+  Paper,
+  Typography,
+  Box,
+  Tabs,
+  Tab,
+} from '@mui/material';
+import ProfileDetails from './ProfileDetails';
+import NotificationSettings from './NotificationSettings';
+import DisplayPreferences from './DisplayPreferences';
+import ActivityHistory from './ActivityHistory';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
+  <div role="tabpanel" hidden={value !== index}>
+    {value === index && (
+      <Box sx={{ p: 3 }}>
+        {children}
+      </Box>
+    )}
+  </div>
+);
+
+const ProfilePage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState(0);
+  const { user } = useAuth();
+
+  if (!user) {
+    return (
+      <Container>
+        <Typography>Please login to view your profile.</Typography>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="h4" gutterBottom>
+              User Profile
+            </Typography>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs
+                value={activeTab}
+                onChange={(_, newValue) => setActiveTab(newValue)}
+              >
+                <Tab label="Profile Details" />
+                <Tab label="Notifications" />
+                <Tab label="Display Preferences" />
+                <Tab label="Activity History" />
+              </Tabs>
+            </Box>
+            <TabPanel value={activeTab} index={0}>
+              <ProfileDetails />
+            </TabPanel>
+            <TabPanel value={activeTab} index={1}>
+              <NotificationSettings />
+            </TabPanel>
+            <TabPanel value={activeTab} index={2}>
+              <DisplayPreferences />
+            </TabPanel>
+            <TabPanel value={activeTab} index={3}>
+              <ActivityHistory />
+            </TabPanel>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Container>
+  );
+};
+
+export default ProfilePage;

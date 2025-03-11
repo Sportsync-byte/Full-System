@@ -1,0 +1,149 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Chip,
+  IconButton,
+  Tooltip,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+import { Info as InfoIcon } from '@mui/icons-material';
+import { format } from 'date-fns';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface Activity {
+  id: string;
+  type: string;
+  description: string;
+  timestamp: string;
+  details: any;
+}
+
+const ActivityHistory: React.FC = () => {
+  const { user } = useAuth();
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [page, rowsPerPage]);
+
+  const fetchActivities = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/users/${user?.id}/activities?page=${page}&limit=${rowsPerPage}`
+      );
+      if (!response.ok) throw new Error('Failed to fetch activities');
+      const data = await response.json();
+      setActivities(data.activities);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to load activity history');
+      setLoading(false);
+    }
+  };
+
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const getActivityTypeColor = (type: string) => {
+    switch (type) {
+      case 'login':
+        return 'primary';
+      case 'score_update':
+        return 'success';
+      case 'stream_start':
+        return 'info';
+      case 'chat_message':
+        return 'secondary';
+      default:
+        return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Alert severity="error">{error}</Alert>;
+  }
+
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Activity History
+      </Typography>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Type</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>Date & Time</TableCell>
+              <TableCell>Details</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {activities.map((activity) => (
+              <TableRow key={activity.id}>
+                <TableCell>
+                  <Chip
+                    label={activity.type}
+                    color={getActivityTypeColor(activity.type) as any}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>{activity.description}</TableCell>
+                <TableCell>
+                  {format(new Date(activity.timestamp), 'PPpp')}
+                </TableCell>
+                <TableCell>
+                  <Tooltip title={JSON.stringify(activity.details, null, 2)}>
+                    <IconButton size="small">
+                      <InfoIcon />
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <TablePagination
+          component="div"
+          count={-1}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+        />
+      </TableContainer>
+    </Box>
+  );
+};
+
+export default ActivityHistory;

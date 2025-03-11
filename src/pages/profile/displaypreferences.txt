@@ -1,0 +1,209 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Switch,
+  FormControlLabel,
+  Button,
+  Alert,
+  Typography,
+  Paper,
+  Grid,
+} from '@mui/material';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface DisplayPrefs {
+  theme: 'light' | 'dark' | 'system';
+  timeFormat: '12h' | '24h';
+  dateFormat: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+  showLiveBadges: boolean;
+  enableAnimations: boolean;
+  compactView: boolean;
+  favoriteTeamsFirst: boolean;
+}
+
+const DisplayPreferences: React.FC = () => {
+  const { user } = useAuth();
+  const [preferences, setPreferences] = useState<DisplayPrefs>({
+    theme: 'system',
+    timeFormat: '24h',
+    dateFormat: 'DD/MM/YYYY',
+    showLiveBadges: true,
+    enableAnimations: true,
+    compactView: false,
+    favoriteTeamsFirst: true,
+  });
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    fetchPreferences();
+  }, []);
+
+  const fetchPreferences = async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/users/${user?.id}/display-preferences`);
+      const data = await response.json();
+      setPreferences(data);
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to load display preferences' });
+    }
+  };
+
+  const handleChange = (field: keyof DisplayPrefs) => 
+    (event: React.ChangeEvent<HTMLInputElement | { value: unknown }>) => {
+    const value = event.target.type === 'checkbox' 
+      ? (event.target as HTMLInputElement).checked 
+      : event.target.value;
+    
+    setPreferences(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/users/${user?.id}/display-preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferences),
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Display preferences updated successfully' });
+      } else {
+        throw new Error('Failed to update preferences');
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to update display preferences' });
+    }
+  };
+
+  return (
+    <Box>
+      {message && (
+        <Alert severity={message.type} sx={{ mb: 2 }}>
+          {message.text}
+        </Alert>
+      )}
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Appearance Settings
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Theme</InputLabel>
+              <Select
+                value={preferences.theme}
+                label="Theme"
+                onChange={handleChange('theme')}
+              >
+                <MenuItem value="light">Light</MenuItem>
+                <MenuItem value="dark">Dark</MenuItem>
+                <MenuItem value="system">System Default</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Time Format</InputLabel>
+              <Select
+                value={preferences.timeFormat}
+                label="Time Format"
+                onChange={handleChange('timeFormat')}
+              >
+                <MenuItem value="12h">12 Hour</MenuItem>
+                <MenuItem value="24h">24 Hour</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel>Date Format</InputLabel>
+              <Select
+                value={preferences.dateFormat}
+                label="Date Format"
+                onChange={handleChange('dateFormat')}
+              >
+                <MenuItem value="DD/MM/YYYY">DD/MM/YYYY</MenuItem>
+                <MenuItem value="MM/DD/YYYY">MM/DD/YYYY</MenuItem>
+                <MenuItem value="YYYY-MM-DD">YYYY-MM-DD</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Display Options
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={preferences.showLiveBadges}
+                  onChange={handleChange('showLiveBadges')}
+                />
+              }
+              label="Show Live Badges"
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={preferences.enableAnimations}
+                  onChange={handleChange('enableAnimations')}
+                />
+              }
+              label="Enable Animations"
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={preferences.compactView}
+                  onChange={handleChange('compactView')}
+                />
+              }
+              label="Compact View"
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={preferences.favoriteTeamsFirst}
+                  onChange={handleChange('favoriteTeamsFirst')}
+                />
+              }
+              label="Show Favorite Teams First"
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Button
+        variant="contained"
+        onClick={handleSubmit}
+        sx={{ mt: 2 }}
+      >
+        Save Preferences
+      </Button>
+    </Box>
+  );
+};
+
+export default DisplayPreferences;
