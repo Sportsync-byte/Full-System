@@ -1,0 +1,186 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
+import { SportType } from '../../../types/types';
+import { useSocket } from '../../../contexts/SocketContext';
+import Timer from '../common/Timer';
+
+interface RugbyScoreboardProps {
+  format: SportType;
+}
+
+const RugbyScoreboard: React.FC<RugbyScoreboardProps> = ({ format }) => {
+  const socket = useSocket();
+  const [homeScore, setHomeScore] = useState(0);
+  const [awayScore, setAwayScore] = useState(0);
+  const [half, setHalf] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(
+    format === SportType.TOUCH_RUGBY ? 14 * 60 : 40 * 60
+  );
+
+  const handleScore = (team: 'home' | 'away', points: number) => {
+    if (team === 'home') {
+      setHomeScore(prev => prev + points);
+    } else {
+      setAwayScore(prev => prev + points);
+    }
+
+    socket.emit('scoreUpdate', {
+      type: 'SCORE',
+      team,
+      points,
+      homeScore: team === 'home' ? homeScore + points : homeScore,
+      awayScore: team === 'away' ? awayScore + points : awayScore,
+      timeRemaining
+    });
+  };
+
+  const handleHalfTime = () => {
+    if (half === 1) {
+      setHalf(2);
+      setTimeRemaining(
+        format === SportType.TOUCH_RUGBY ? 14 * 60 : 40 * 60
+      );
+      socket.emit('halfTime');
+    }
+  };
+
+  const handleGameEnd = () => {
+    setIsPlaying(false);
+    socket.emit('gameEnd', {
+      finalScore: {
+        home: homeScore,
+        away: awayScore
+      }
+    });
+  };
+
+  return (
+    <Box>
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">
+              Half {half}
+            </Typography>
+            <Timer
+              initialTime={timeRemaining}
+              isPlaying={isPlaying}
+              onTimeUpdate={setTimeRemaining}
+              onTimeEnd={half === 1 ? handleHalfTime : handleGameEnd}
+            />
+            <Button
+              variant="contained"
+              onClick={() => setIsPlaying(!isPlaying)}
+              sx={{ mt: 1 }}
+            >
+              {isPlaying ? 'Pause' : 'Start'}
+            </Button>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">Home</Typography>
+            <Typography variant="h2">{homeScore}</Typography>
+            <Grid container spacing={1} sx={{ mt: 2 }}>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('home', 5)}
+                >
+                  Try (5)
+                </Button>
+              </Grid>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('home', 2)}
+                >
+                  Conversion (2)
+                </Button>
+              </Grid>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('home', 3)}
+                >
+                  Penalty (3)
+                </Button>
+              </Grid>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('home', 3)}
+                >
+                  Drop Goal (3)
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={6}>
+          <Paper sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="h4">Away</Typography>
+            <Typography variant="h2">{awayScore}</Typography>
+            <Grid container spacing={1} sx={{ mt: 2 }}>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('away', 5)}
+                >
+                  Try (5)
+                </Button>
+              </Grid>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('away', 2)}
+                >
+                  Conversion (2)
+                </Button>
+              </Grid>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('away', 3)}
+                >
+                  Penalty (3)
+                </Button>
+              </Grid>
+              <Grid item xs={6}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={() => handleScore('away', 3)}
+                >
+                  Drop Goal (3)
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
+export default RugbyScoreboard;
