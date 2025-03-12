@@ -1,0 +1,181 @@
+import { Request, Response, NextFunction } from 'express';
+import { Competition } from '../models/Competition';
+import { Match } from '../models/Match';
+import { Team } from '../models/Team';
+import { AppError } from '../utils/AppError';
+import { catchAsync } from '../utils/catchAsync';
+
+export const createCompetition = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const competition = await Competition.create(req.body);
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        competition,
+      },
+    });
+  }
+);
+
+export const getCompetition = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const competition = await Competition.findById(req.params.id)
+      .populate('teams');
+
+    if (!competition) {
+      throw new AppError('Competition not found', 404);
+    }
+
+    // Get upcoming matches
+    const upcomingMatches = await Match.find({
+      competition: competition._id,
+      status: 'scheduled',
+    })
+      .sort({ date: 1 })
+      .limit(5)
+      .populate('homeTeam')
+      .populate('awayTeam');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        competition,
+        upcomingMatches,
+      },
+    });
+  }
+);
+
+export const updateCompetition = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const competition = await Competition.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!competition) {
+      throw new AppError('Competition not found', 404);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        competition,
+      },
+    });
+  }
+);
+
+export const getStandings = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const competition = await Competition.findById(req.params.id)
+      .populate('teams');
+
+    if (!competition) {
+      throw new AppError('Competition not found', 404);
+    }
+
+    const matches = await Match.find({
+      competition: competition._id,
+      status: 'completed',
+    });
+
+    const standings = competition.teams.map((team: any) => ({
+      team: team._id,
+      teamName: team.name,
+      played: 0,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      goalDifference: 0,
+      points: 0,
+    }));
+
+    matches.forEach((match) => {
+      const homeTeamIndex = standings.findIndex(
+        (s) => s.team.toString() === match.homeTeam.toString()
+      );
+      const awayTeamIndex = standings.findIndex(
+        (s) => s.team.toString() === match.awayTeam.toString()
+      );
+
+      if (homeTeamIndex > -1 && awayTeamIndex > -1) {
+        // Update matches played
+        standings[homeTeamIndex].played++;
+        standings[awayTeamIndex].played++;
+
+        // Update goals
+        standings[homeTeamIndex].goalsFor += match.score.home;
+        standings[homeTeamIndex].goalsAgainst += match.score.away;
+        standings[awayTeamIndex].goalsFor += match.score.away;
+        standings[awayTeamIndex].goalsAgainst += match.score.home;
+
+        // Update results
+        if (match.score.home > match.score.away) {
+          standings[homeTeamIndex].won++;
+          standings[awayTeamIndex].lost++;
+          standings[homeTeamIndex].points += 3;
+        } else if (match.score.home < match.score.away) {
+          standings[homeTeamIndex].lost++;
+          standings[awayTeamIndex].won++;
+          standings[awayTeamIndex].points += 3;
+        } else {
+          standings[homeTeamIndex].drawn++;
+          standings[awayTeamIndex].drawn++;
+          standings[homeTeamIndex].points += 1;
+          standings[awayTeamIndex].points += 1;
+        }
+      }
+    });
+
+    // Calculate goal differences and sort standings
+    standings.forEach((s) => {
+      s.goalDifference = s.goalsFor - s.goalsAgainst;
+    });
+
+    standings.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.goalDifference !== a.goalDifference)
+        return b.goalDifference - a.goalDifference;
+      return b.goalsFor - a.goalsFor;
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        standings,
+      },
+    });
+  }
+);
+
+export const getFixtures = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const competition = await Competition.findById(req.params.id);
+
+    if (!competition) {
+      throw new AppError('Competition not found', 404);
+    }
+
+    const matches = await Match.find({
+      competition: competition._id,
+    })
+      .sort({ date: 1 })
+      .populate('homeTeam')
+      .populate('awayTeam');
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        matches,
+      },
+    });
+  }
+);

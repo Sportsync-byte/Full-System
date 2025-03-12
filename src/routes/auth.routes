@@ -1,0 +1,13 @@
+import express from 'express';
+import { register, login, getMe, updatePassword } from '../controllers/auth.controller';
+import { protect } from '../middleware/auth';
+import { validateRegistration, validateLogin } from '../middleware/validation';
+
+const router = express.Router();
+
+router.post('/register', validateRegistration, register);
+router.post('/login', validateLogin, login);
+router.get('/me', protect, getMe);
+router.patch('/update-password', protect, updatePassword);
+
+export default router;

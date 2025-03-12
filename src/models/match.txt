@@ -1,0 +1,117 @@
+import mongoose, { Document, Schema } from 'mongoose';
+
+export interface IMatch extends Document {
+  competition: mongoose.Types.ObjectId;
+  homeTeam: mongoose.Types.ObjectId;
+  awayTeam: mongoose.Types.ObjectId;
+  date: Date;
+  status: 'scheduled' | 'live' | 'completed' | 'cancelled';
+  sport: string;
+  venue: string;
+  score: {
+    home: number;
+    away: number;
+  };
+  statistics: {
+    [key: string]: any;
+  };
+  events: {
+    type: string;
+    minute: number;
+    description: string;
+    team: 'home' | 'away';
+    player?: string;
+    timestamp: Date;
+  }[];
+  streamUrl?: string;
+  isStreamLive: boolean;
+}
+
+const matchSchema = new Schema<IMatch>(
+  {
+    competition: {
+      type: Schema.Types.ObjectId,
+      ref: 'Competition',
+      required: true,
+    },
+    homeTeam: {
+      type: Schema.Types.ObjectId,
+      ref: 'Team',
+      required: true,
+    },
+    awayTeam: {
+      type: Schema.Types.ObjectId,
+      ref: 'Team',
+      required: true,
+    },
+    date: {
+      type: Date,
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['scheduled', 'live', 'completed', 'cancelled'],
+      default: 'scheduled',
+    },
+    sport: {
+      type: String,
+      required: true,
+    },
+    venue: {
+      type: String,
+      required: true,
+    },
+    score: {
+      home: {
+        type: Number,
+        default: 0,
+      },
+      away: {
+        type: Number,
+        default: 0,
+      },
+    },
+    statistics: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    events: [{
+      type: {
+        type: String,
+        required: true,
+      },
+      minute: {
+        type: Number,
+        required: true,
+      },
+      description: {
+        type: String,
+        required: true,
+      },
+      team: {
+        type: String,
+        enum: ['home', 'away'],
+        required: true,
+      },
+      player: {
+        type: String,
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
+    streamUrl: {
+      type: String,
+    },
+    isStreamLive: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export const Match = mongoose.model<IMatch>('Match', matchSchema);

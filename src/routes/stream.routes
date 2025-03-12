@@ -1,0 +1,24 @@
+import express from 'express';
+import {
+  startStream,
+  stopStream,
+  getStreamStatus,
+  getActiveStreams,
+} from '../controllers/stream.controller';
+import { protect, authorize } from '../middleware/auth';
+
+const router = express.Router();
+
+router.use(protect); // All stream routes require authentication
+
+router
+  .route('/')
+  .post(authorize('admin', 'moderator'), startStream)
+  .get(getActiveStreams);
+
+router
+  .route('/:matchId')
+  .get(getStreamStatus)
+  .delete(authorize('admin', 'moderator'), stopStream);
+
+export default router;

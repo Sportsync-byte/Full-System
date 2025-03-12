@@ -1,0 +1,59 @@
+import mongoose, { Document, Schema } from 'mongoose';
+
+export interface ICompetition extends Document {
+  name: string;
+  sport: string;
+  season: string;
+  startDate: Date;
+  endDate: Date;
+  teams: mongoose.Types.ObjectId[];
+  status: 'upcoming' | 'active' | 'completed';
+  logo?: string;
+  description?: string;
+}
+
+const competitionSchema = new Schema<ICompetition>(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    sport: {
+      type: String,
+      required: true,
+    },
+    season: {
+      type: String,
+      required: true,
+    },
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      required: true,
+    },
+    teams: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Team',
+    }],
+    status: {
+      type: String,
+      enum: ['upcoming', 'active', 'completed'],
+      default: 'upcoming',
+    },
+    logo: {
+      type: String,
+    },
+    description: {
+      type: String,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export const Competition = mongoose.model<ICompetition>('Competition', competitionSchema);

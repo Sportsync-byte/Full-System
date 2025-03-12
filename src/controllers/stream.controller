@@ -1,0 +1,66 @@
+import { Request, Response, NextFunction } from 'express';
+import { streamService } from '../services/StreamService';
+import { AppError } from '../utils/AppError';
+import { catchAsync } from '../utils/catchAsync';
+
+export const startStream = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { matchId, streamUrl, quality, isPublic } = req.body;
+
+    await streamService.startStream({
+      matchId,
+      streamUrl,
+      quality,
+      isPublic,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Stream started successfully',
+    });
+  }
+);
+
+export const stopStream = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { matchId } = req.params;
+
+    await streamService.stopStream(matchId);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Stream stopped successfully',
+    });
+  }
+);
+
+export const getStreamStatus = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { matchId } = req.params;
+    const streamConfig = streamService.getStreamConfig(matchId);
+
+    if (!streamConfig) {
+      throw new AppError('No active stream found for this match', 404);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        streamConfig,
+      },
+    });
+  }
+);
+
+export const getActiveStreams = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const streams = streamService.getActiveStreams();
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        streams,
+      },
+    });
+  }
+);

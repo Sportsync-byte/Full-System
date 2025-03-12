@@ -1,0 +1,61 @@
+import { Server, Socket } from 'socket.io';
+import { verifyToken } from '../utils/jwt';
+
+interface CustomSocket extends Socket {
+  userId?: string;
+}
+
+export const setupSocketIO = (io: Server) => {
+  // Middleware to authenticate socket connections
+  io.use(async (socket: CustomSocket, next) => {
+    try {
+      const token = socket.handshake.auth.token;
+      if (!token) {
+        return next(new Error('Authentication error'));
+      }
+
+      const decoded = await verifyToken(token);
+      socket.userId = decoded.id;
+      next();
+    } catch (error) {
+      next(new Error('Authentication error'));
+    }
+  });
+
+  io.on('connection', (socket: CustomSocket) => {
+    console.log(`User connected: ${socket.userId}`);
+
+    // Join match room
+    socket.on('join_match', (matchId: string) => {
+      socket.join(`match_${matchId}`);
+      console.log(`User ${socket.userId} joined match ${matchId}`);
+    });
+
+    // Leave match room
+    socket.on('leave_match', (matchId: string) => {
+      socket.leave(`match_${matchId}`);
+      console.log(`User ${socket.userId} left match ${matchId}`);
+    });
+
+    // Handle score updates
+    socket.on('score_update', (data) => {
+      io.to(`match_${data.matchId}`).emit('score_updated', data);
+    });
+
+    // Handle match events
+    socket.on('match_event', (data) => {
+      io.to(`match_${data.matchId}`).emit('new_match_event', data);
+    });
+
+    // Handle stream status
+    socket.on('stream_status', (data) => {
+      io.to(`match_${data.matchId}`).emit('stream_status_changed', data);
+    });
+
+    socket.on('disconnect', () => {
+      console.log(`User disconnected: ${socket.userId}`);
+    });
+  });
+
+  return io;
+};

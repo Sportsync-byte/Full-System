@@ -1,0 +1,52 @@
+import { Request, Response, NextFunction } from 'express';
+import { statisticsService } from '../services/StatisticsService';
+import { catchAsync } from '../utils/catchAsync';
+
+export const getTeamStats = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { teamId } = req.params;
+    const { competitionId } = req.query;
+
+    const stats = await statisticsService.getTeamStatistics(
+      teamId,
+      competitionId as string
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        stats,
+      },
+    });
+  }
+);
+
+export const getMatchStats = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { matchId } = req.params;
+
+    const stats = await statisticsService.getMatchStatistics(matchId);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        stats,
+      },
+    });
+  }
+);
+
+export const getCompetitionStats = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { competitionId } = req.params;
+
+    const stats = await statisticsService.getCompetitionStatistics(competitionId);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        stats,
+      },
+    });
+  }
+);
