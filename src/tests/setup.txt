@@ -1,0 +1,38 @@
+import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.test' });
+
+let mongod: MongoMemoryServer;
+
+beforeAll(async () => {
+  mongod = await MongoMemoryServer.create();
+  const uri = mongod.getUri();
+  await mongoose.connect(uri);
+});
+
+afterEach(async () => {
+  const collections = await mongoose.connection.db.collections();
+  for (const collection of collections) {
+    await collection.deleteMany({});
+  }
+});
+
+afterAll(async () => {
+  await mongoose.connection.close();
+  await mongod.stop();
+});
+
+// Global test utilities
+global.createTestUser = async (overrides = {}) => {
+  const { User } = require('../models/User');
+  const defaultUser = {
+    email: 'test@example.com',
+    password: 'password123',
+    name: 'Test User',
+    role: 'user',
+  };
+
+  return User.create({ ...defaultUser, ...overrides });
+};

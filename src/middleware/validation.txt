@@ -1,0 +1,53 @@
+import { Request, Response, NextFunction } from 'express';
+import { body, validationResult } from 'express-validator';
+
+export const validateRegistration = [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 6 }),
+  body('name').trim().notEmpty(),
+  handleValidationErrors,
+];
+
+export const validateLogin = [
+  body('email').isEmail().normalizeEmail(),
+  body('password').notEmpty(),
+  handleValidationErrors,
+];
+
+export const validateMatchCreation = [
+  body('competition').isMongoId(),
+  body('homeTeam').isMongoId(),
+  body('awayTeam').isMongoId(),
+  body('date').isISO8601(),
+  body('venue').trim().notEmpty(),
+  handleValidationErrors,
+];
+
+export const validateScoreUpdate = [
+  body('homeScore').isInt({ min: 0 }),
+  body('awayScore').isInt({ min: 0 }),
+  handleValidationErrors,
+];
+
+export const validateStreamConfig = [
+  body('matchId').isMongoId(),
+  body('streamUrl').isURL(),
+  body('quality').isIn(['720p', '1080p', '480p']),
+  body('isPublic').isBoolean(),
+  handleValidationErrors,
+];
+
+function handleValidationErrors(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      status: 'error',
+      errors: errors.array(),
+    });
+  }
+  next();
+}

@@ -1,0 +1,73 @@
+import { Request, Response, NextFunction } from 'express';
+import { AppError } from '../utils/AppError';
+import { logger } from '../utils/logger';
+import mongoose from 'mongoose';
+
+export const errorHandler = (
+  err: Error | AppError,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  logger.error('Error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+  });
+
+  // Handle AppError instances
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      status: err.status,
+      message: err.message,
+      errors: err.errors,
+    });
+  }
+
+  // Handle Mongoose validation errors
+  if (err instanceof mongoose.Error.ValidationError) {
+    const errors = Object.values(err.errors).map(error => ({
+      field: error.path,
+      message: error.message,
+    }));
+
+    return res.status(422).json({
+      status: 'fail',
+      message: 'Validation Error',
+      errors,
+    });
+  }
+
+  // Handle Mongoose duplicate key errors
+  if (err.name === 'MongoError' && (err as any).code === 11000) {
+    const field = Object.keys((err as any).keyValue)[0];
+    return res.status(409).json({
+      status: 'fail',
+      message: `Duplicate ${field}`,
+    });
+  }
+
+  // Handle JWT errors
+  if (err.name === 'JsonWebTokenError') {
+    return res.status(401).json({
+      status: 'fail',
+      message: 'Invalid token',
+    });
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      status: 'fail',
+      message: 'Token expired',
+    });
+  }
+
+  // Default error response
+  return res.status(500).json({
+    status: 'error',
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Something went wrong' 
+      : err.message,
+  });
+};

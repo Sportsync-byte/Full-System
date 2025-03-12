@@ -1,0 +1,14 @@
+import express from 'express';
+import {
+  getTeamStats,
+  getMatchStats,
+  getCompetitionStats,
+} from '../controllers/statistics.controller';
+
+const router = express.Router();
+
+router.get('/teams/:teamId', getTeamStats);
+router.get('/matches/:matchId', getMatchStats);
+router.get('/competitions/:competitionId', getCompetitionStats);
+
+export default router;

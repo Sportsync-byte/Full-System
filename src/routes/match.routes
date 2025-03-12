@@ -1,0 +1,33 @@
+import express from 'express';
+import {
+  createMatch,
+  getMatch,
+  updateMatch,
+  deleteMatch,
+  getMatches,
+  updateScore,
+  addEvent,
+  getMatchEvents,
+  getMatchStatistics,
+} from '../controllers/match.controller';
+import { protect, authorize } from '../middleware/auth';
+
+const router = express.Router();
+
+router
+  .route('/')
+  .get(getMatches)
+  .post(protect, authorize('admin', 'moderator'), createMatch);
+
+router
+  .route('/:id')
+  .get(getMatch)
+  .patch(protect, authorize('admin', 'moderator'), updateMatch)
+  .delete(protect, authorize('admin'), deleteMatch);
+
+router.patch('/:id/score', protect, authorize('admin', 'moderator'), updateScore);
+router.post('/:id/events', protect, authorize('admin', 'moderator'), addEvent);
+router.get('/:id/events', getMatchEvents);
+router.get('/:id/statistics', getMatchStatistics);
+
+export default router;

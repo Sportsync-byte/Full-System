@@ -1,0 +1,123 @@
+import request from 'supertest';
+import { app } from '../index';
+import { Match } from '../models/Match';
+import { User } from '../models/User';
+import { Team } from '../models/Team';
+import { Competition } from '../models/Competition';
+
+describe('Match Routes', () => {
+  let token: string;
+  let adminToken: string;
+  let competition: any;
+  let homeTeam: any;
+  let awayTeam: any;
+
+  beforeEach(async () => {
+    // Create test user and admin
+    const user = await User.create({
+      email: 'user@example.com',
+      password: 'password123',
+      name: 'Test User',
+      role: 'user',
+    });
+
+    const admin = await User.create({
+      email: 'admin@example.com',
+      password: 'password123',
+      name: 'Admin User',
+      role: 'admin',
+    });
+
+    token = user.generateToken();
+    adminToken = admin.generateToken();
+
+    // Create test teams and competition
+    homeTeam = await Team.create({
+      name: 'Home Team',
+      sport: 'football',
+      location: 'Home City',
+    });
+
+    awayTeam = await Team.create({
+      name: 'Away Team',
+      sport: 'football',
+      location: 'Away City',
+    });
+
+    competition = await Competition.create({
+      name: 'Test League',
+      sport: 'football',
+      season: '2023/24',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 86400000),
+    });
+  });
+
+  describe('POST /api/matches', () => {
+    it('should create a new match when admin is authenticated', async () => {
+      const response = await request(app)
+        .post('/api/matches')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          competition: competition._id,
+          homeTeam: homeTeam._id,
+          awayTeam: awayTeam._id,
+          date: new Date(),
+          venue: 'Test Stadium',
+          sport: 'football',
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.match).toHaveProperty('homeTeam');
+      expect(response.body.data.match).toHaveProperty('awayTeam');
+    });
+
+    it('should not create a match without admin privileges', async () => {
+      const response = await request(app)
+        .post('/api/matches')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          competition: competition._id,
+          homeTeam: homeTeam._id,
+          awayTeam: awayTeam._id,
+          date: new Date(),
+          venue: 'Test Stadium',
+          sport: 'football',
+        });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('PATCH /api/matches/:id/score', () => {
+    let match: any;
+
+    beforeEach(async () => {
+      match = await Match.create({
+        competition: competition._id,
+        homeTeam: homeTeam._id,
+        awayTeam: awayTeam._id,
+        date: new Date(),
+        venue: 'Test Stadium',
+        sport: 'football',
+        status: 'live',
+      });
+    });
+
+    it('should update match score when authorized', async () => {
+      const response = await request(app)
+        .patch(`/api/matches/${match._id}/score`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          homeScore: 2,
+          awayScore: 1,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.match.score).toEqual({
+        home: 2,
+        away: 1,
+      });
+    });
+  });
+});

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Build the application
+echo "Building the application..."
+npm run build
+
+# Copy dist folder to server
+echo "Copying files to server..."
+scp -r dist package.json package-lock.json ecosystem.config.js user@your-server:/path/to/app
+
+# SSH into server and restart the application
+echo "Restarting the application..."
+ssh user@your-server << 'ENDSSH'
+cd /path/to/app
+npm install --production
+pm2 reload ecosystem.config.js --env production
+ENDSSH
+
+echo "Deployment completed!"

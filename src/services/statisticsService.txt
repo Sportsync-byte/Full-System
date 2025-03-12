@@ -1,0 +1,141 @@
+import { Match } from '../models/Match';
+import { Team } from '../models/Team';
+import { Competition } from '../models/Competition';
+
+export class StatisticsService {
+  async getTeamStatistics(teamId: string, competitionId?: string) {
+    const query: any = {
+      $or: [{ homeTeam: teamId }, { awayTeam: teamId }],
+      status: 'completed',
+    };
+
+    if (competitionId) {
+      query.competition = competitionId;
+    }
+
+    const matches = await Match.find(query);
+
+    const stats = {
+      totalMatches: matches.length,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      cleanSheets: 0,
+      averageGoalsScored: 0,
+      averageGoalsConceded: 0,
+      form: [] as string[],
+    };
+
+    matches.forEach((match) => {
+      const isHome = match.homeTeam.toString() === teamId;
+      const teamScore = isHome ? match.score.home : match.score.away;
+      const opponentScore = isHome ? match.score.away : match.score.home;
+
+      // Update goals
+      stats.goalsFor += teamScore;
+      stats.goalsAgainst += opponentScore;
+
+      // Update results
+      if (teamScore > opponentScore) {
+        stats.wins++;
+        stats.form.push('W');
+      } else if (teamScore < opponentScore) {
+        stats.losses++;
+        stats.form.push('L');
+      } else {
+        stats.draws++;
+        stats.form.push('D');
+      }
+
+      // Update clean sheets
+      if (opponentScore === 0) {
+        stats.cleanSheets++;
+      }
+    });
+
+    // Calculate averages
+    stats.averageGoalsScored = stats.goalsFor / stats.totalMatches;
+    stats.averageGoalsConceded = stats.goalsAgainst / stats.totalMatches;
+
+    // Keep only last 5 matches for form
+    stats.form = stats.form.slice(-5);
+
+    return stats;
+  }
+
+  async getMatchStatistics(matchId: string) {
+    const match = await Match.findById(matchId)
+      .populate('homeTeam')
+      .populate('awayTeam');
+
+    if (!match) {
+      throw new Error('Match not found');
+    }
+
+    return {
+      general: {
+        possession: match.statistics.possession || { home: 50, away: 50 },
+        shots: match.statistics.shots || { home: 0, away: 0 },
+        shotsOnTarget: match.statistics.shotsOnTarget || { home: 0, away: 0 },
+        corners: match.statistics.corners || { home: 0, away: 0 },
+        fouls: match.statistics.fouls || { home: 0, away: 0 },
+      },
+      events: match.events,
+      score: match.score,
+      status: match.status,
+    };
+  }
+
+  async getCompetitionStatistics(competitionId: string) {
+    const matches = await Match.find({
+      competition: competitionId,
+      status: 'completed',
+    });
+
+    const stats = {
+      totalMatches: matches.length,
+      totalGoals: 0,
+      averageGoalsPerMatch: 0,
+      cleanSheets: 0,
+      mostGoalsInMatch: 0,
+      topScorers: new Map<string, number>(),
+    };
+
+    matches.forEach((match) => {
+      const totalGoalsInMatch = match.score.home + match.score.away;
+      stats.totalGoals += totalGoalsInMatch;
+      
+      if (totalGoalsInMatch > stats.mostGoalsInMatch) {
+        stats.mostGoalsInMatch = totalGoalsInMatch;
+      }
+
+      if (match.score.home === 0 || match.score.away === 0) {
+        stats.cleanSheets++;
+      }
+
+      // Process events for top scorers
+      match.events
+        .filter(event => event.type === 'goal')
+        .forEach(event => {
+          const currentGoals = stats.topScorers.get(event.player!) || 0;
+          stats.topScorers.set(event.player!, currentGoals + 1);
+        });
+    });
+
+    stats.averageGoalsPerMatch = stats.totalGoals / stats.totalMatches;
+
+    // Convert top scorers map to sorted array
+    const topScorers = Array.from(stats.topScorers.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+
+    return {
+      ...stats,
+      topScorers,
+    };
+  }
+}
+
+export const statisticsService = new StatisticsService();

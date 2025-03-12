@@ -1,0 +1,114 @@
+import { Request, Response, NextFunction } from 'express';
+import { Match } from '../models/Match';
+import { AppError } from '../utils/AppError';
+import { catchAsync } from '../utils/catchAsync';
+import { io } from '../index';
+
+export const createMatch = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const match = await Match.create(req.body);
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        match,
+      },
+    });
+  }
+);
+
+export const getMatch = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const match = await Match.findById(req.params.id)
+      .populate('homeTeam')
+      .populate('awayTeam')
+      .populate('competition');
+
+    if (!match) {
+      throw new AppError('Match not found', 404);
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        match,
+      },
+    });
+  }
+);
+
+export const updateScore = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { homeScore, awayScore } = req.body;
+    const match = await Match.findById(req.params.id);
+
+    if (!match) {
+      throw new AppError('Match not found', 404);
+    }
+
+    match.score.home = homeScore;
+    match.score.away = awayScore;
+    await match.save();
+
+    // Emit score update event
+    io.to(`match_${match._id}`).emit('score_updated', {
+      matchId: match._id,
+      score: match.score,
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        match,
+      },
+    });
+  }
+);
+
+export const addEvent = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const match = await Match.findById(req.params.id);
+
+    if (!match) {
+      throw new AppError('Match not found', 404);
+    }
+
+    match.events.push({
+      ...req.body,
+      timestamp: new Date(),
+    });
+
+    await match.save();
+
+    // Emit new event
+    io.to(`match_${match._id}`).emit('new_match_event', {
+      matchId: match._id,
+      event: req.body,
+    });
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        event: match.events[match.events.length - 1],
+      },
+    });
+  }
+);
+
+export const getMatches = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const matches = await Match.find(req.query)
+      .populate('homeTeam')
+      .populate('awayTeam')
+      .populate('competition')
+      .sort({ date: 1 });
+
+    res.status(200).json({
+      status: 'success',
+      results: matches.length,
+      data: {
+        matches,
+      },
+    });
+  }
+);

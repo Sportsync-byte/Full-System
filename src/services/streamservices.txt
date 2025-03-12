@@ -1,0 +1,72 @@
+import { Match } from '../models/Match';
+import { AppError } from '../utils/AppError';
+import { io } from '../index';
+
+interface StreamConfig {
+  matchId: string;
+  streamUrl: string;
+  quality: string;
+  isPublic: boolean;
+}
+
+class StreamService {
+  private activeStreams: Map<string, StreamConfig>;
+
+  constructor() {
+    this.activeStreams = new Map();
+  }
+
+  async startStream(config: StreamConfig): Promise<void> {
+    const match = await Match.findById(config.matchId);
+
+    if (!match) {
+      throw new AppError('Match not found', 404);
+    }
+
+    if (match.status !== 'live') {
+      match.status = 'live';
+      await match.save();
+    }
+
+    this.activeStreams.set(config.matchId, config);
+    match.streamUrl = config.streamUrl;
+    match.isStreamLive = true;
+    await match.save();
+
+    io.to(`match_${config.matchId}`).emit('stream_started', {
+      matchId: config.matchId,
+      streamUrl: config.streamUrl,
+    });
+  }
+
+  async stopStream(matchId: string): Promise<void> {
+    const match = await Match.findById(matchId);
+
+    if (!match) {
+      throw new AppError('Match not found', 404);
+    }
+
+    this.activeStreams.delete(matchId);
+    match.streamUrl = undefined;
+    match.isStreamLive = false;
+    await match.save();
+
+    io.to(`match_${matchId}`).emit('stream_ended', {
+      matchId,
+    });
+  }
+
+  getStreamConfig(matchId: string): StreamConfig | undefined {
+    return this.activeStreams.get(matchId);
+  }
+
+  isStreaming(matchId: string): boolean {
+    return this.activeStreams.has(matchId);
+  }
+
+  getActiveStreams(): StreamConfig[] {
+    return Array.from(this.activeStreams.values());
+  }
+}
+
+export const streamService = new StreamService();

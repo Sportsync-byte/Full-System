@@ -1,0 +1,257 @@
+import { Server, Socket } from 'socket.io';
+import { Match } from '../models/Match';
+import { User } from '../models/User';
+import { verifyToken } from '../utils/jwt';
+import { logger } from '../utils/logger';
+
+interface CustomSocket extends Socket {
+  userId?: string;
+  user?: any;
+}
+
+export class WebSocketService {
+  private io: Server;
+  private connectedUsers: Map<string, Set<string>>;
+
+  constructor(io: Server) {
+    this.io = io;
+    this.connectedUsers = new Map();
+    this.setupMiddleware();
+    this.setupEventHandlers();
+  }
+
+  private setupMiddleware() {
+    this.io.use(async (socket: CustomSocket, next) => {
+      try {
+        const token = socket.handshake.auth.token;
+        if (!token) {
+          return next(new Error('Authentication required'));
+        }
+
+        const decoded = await verifyToken(token);
+        const user = await User.findById(decoded.id).select('-password');
+        
+        if (!user) {
+          return next(new Error('User not found'));
+        }
+
+        socket.userId = user._id.toString();
+        socket.user = user;
+        next();
+      } catch (error) {
+        next(new Error('Authentication failed'));
+      }
+    });
+  }
+
+  private setupEventHandlers() {
+    this.io.on('connection', (socket: CustomSocket) => {
+      this.handleConnection(socket);
+
+      // Match related events
+      socket.on('join_match', (matchId: string) => this.handleJoinMatch(socket, matchId));
+      socket.on('leave_match', (matchId: string) => this.handleLeaveMatch(socket, matchId));
+      socket.on('score_update', (data) => this.handleScoreUpdate(socket, data));
+      socket.on('match_event', (data) => this.handleMatchEvent(socket, data));
+
+      // Chat related events
+      socket.on('join_chat', (matchId: string) => this.handleJoinChat(socket, matchId));
+      socket.on('chat_message', (data) => this.handleChatMessage(socket, data));
+
+      // Stream related events
+      socket.on('stream_status', (data) => this.handleStreamStatus(socket, data));
+
+      socket.on('disconnect', () => this.handleDisconnect(socket));
+    });
+  }
+
+  private handleConnection(socket: CustomSocket) {
+    logger.info(`User connected: ${socket.userId}`);
+    if (socket.userId) {
+      const userSockets = this.connectedUsers.get(socket.userId) || new Set();
+      userSockets.add(socket.id);
+      this.connectedUsers.set(socket.userId, userSockets);
+    }
+  }
+
+  private async handleJoinMatch(socket: CustomSocket, matchId: string) {
+    try {
+      const match = await Match.findById(matchId);
+      if (!match) {
+        socket.emit('error', { message: 'Match not found' });
+        return;
+      }
+
+      const room = `match_${matchId}`;
+      socket.join(room);
+      
+      // Send initial match data
+      socket.emit('match_state', {
+        matchId,
+        score: match.score,
+        status: match.status,
+        events: match.events,
+      });
+
+      logger.info(`User ${socket.userId} joined match ${matchId}`);
+    } catch (error) {
+      logger.error('Error joining match:', error);
+      socket.emit('error', { message: 'Failed to join match' });
+    }
+  }
+
+  private handleLeaveMatch(socket: CustomSocket, matchId: string) {
+    const room = `match_${matchId}`;
+    socket.leave(room);
+    logger.info(`User ${socket.userId} left match ${matchId}`);
+  }
+
+  private async handleScoreUpdate(socket: CustomSocket, data: any) {
+    try {
+      const { matchId, homeScore, awayScore } = data;
+      
+      if (!socket.user?.role.includes(['admin', 'moderator'])) {
+        socket.emit('error', { message: 'Unauthorized' });
+        return;
+      }
+
+      const match = await Match.findById(matchId);
+      if (!match) {
+        socket.emit('error', { message: 'Match not found' });
+        return;
+      }
+
+      match.score = { home: homeScore, away: awayScore };
+      await match.save();
+
+      this.io.to(`match_${matchId}`).emit('score_updated', {
+        matchId,
+        score: match.score,
+      });
+
+      logger.info(`Score updated for match ${matchId}`);
+    } catch (error) {
+      logger.error('Error updating score:', error);
+      socket.emit('error', { message: 'Failed to update score' });
+    }
+  }
+
+  private async handleMatchEvent(socket: CustomSocket, data: any) {
+    try {
+      const { matchId, event } = data;
+
+      if (!socket.user?.role.includes(['admin', 'moderator'])) {
+        socket.emit('error', { message: 'Unauthorized' });
+        return;
+      }
+
+      const match = await Match.findById(matchId);
+      if (!match) {
+        socket.emit('error', { message: 'Match not found' });
+        return;
+      }
+
+      match.events.push({
+        ...event,
+        timestamp: new Date(),
+      });
+      await match.save();
+
+      this.io.to(`match_${matchId}`).emit('new_match_event', {
+        matchId,
+        event: match.events[match.events.length - 1],
+      });
+
+      logger.info(`New event added to match ${matchId}`);
+    } catch (error) {
+      logger.error('Error adding match event:', error);
+      socket.emit('error', { message: 'Failed to add match event' });
+    }
+  }
+
+  private handleJoinChat(socket: CustomSocket, matchId: string) {
+    const room = `chat_${matchId}`;
+    socket.join(room);
+    logger.info(`User ${socket.userId} joined chat for match ${matchId}`);
+  }
+
+  private async handleChatMessage(socket: CustomSocket, data: any) {
+    try {
+      const { matchId, message } = data;
+
+      if (!socket.user) {
+        socket.emit('error', { message: 'Unauthorized' });
+        return;
+      }
+
+      const chatMessage = {
+        userId: socket.userId,
+        username: socket.user.name,
+        message,
+        timestamp: new Date(),
+      };
+
+      this.io.to(`chat_${matchId}`).emit('chat_message', chatMessage);
+      logger.info(`Chat message sent in match ${matchId}`);
+    } catch (error) {
+      logger.error('Error sending chat message:', error);
+      socket.emit('error', { message: 'Failed to send message' });
+    }
+  }
+
+  private async handleStreamStatus(socket: CustomSocket, data: any) {
+    try {
+      const { matchId, status } = data;
+
+      if (!socket.user?.role.includes(['admin', 'moderator'])) {
+        socket.emit('error', { message: 'Unauthorized' });
+        return;
+      }
+
+      const match = await Match.findById(matchId);
+      if (!match) {
+        socket.emit('error', { message: 'Match not found' });
+        return;
+      }
+
+      match.isStreamLive = status === 'live';
+      await match.save();
+
+      this.io.to(`match_${matchId}`).emit('stream_status_changed', {
+        matchId,
+        status,
+      });
+
+      logger.info(`Stream status updated for match ${matchId}: ${status}`);
+    } catch (error) {
+      logger.error('Error updating stream status:', error);
+      socket.emit('error', { message: 'Failed to update stream status' });
+    }
+  }
+
+  private handleDisconnect(socket: CustomSocket) {
+    if (socket.userId) {
+      const userSockets = this.connectedUsers.get(socket.userId);
+      if (userSockets) {
+        userSockets.delete(socket.id);
+        if (userSockets.size === 0) {
+          this.connectedUsers.delete(socket.userId);
+        }
+      }
+    }
+    logger.info(`User disconnected: ${socket.userId}`);
+  }
+
+  // Public methods for external use
+  public broadcastMatchUpdate(matchId: string, data: any) {
+    this.io.to(`match_${matchId}`).emit('match_update', data);
+  }
+
+  public broadcastCompetitionUpdate(competitionId: string, data: any) {
+    this.io.to(`competition_${competitionId}`).emit('competition_update', data);
+  }
+
+  public getUserCount(): number {
+    return this.connectedUsers.size;
+  }
+}
