@@ -26,6 +26,11 @@ export interface IMatch extends Document {
   streamUrl?: string;
   isStreamLive: boolean;
 }
+// Add to existing Match model
+matchSchema.index({ date: 1 });
+matchSchema.index({ competition: 1 });
+matchSchema.index({ homeTeam: 1, awayTeam: 1 });
+matchSchema.index({ status: 1 });
 
 const matchSchema = new Schema<IMatch>(
   {
